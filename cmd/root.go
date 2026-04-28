@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/opay-bigdata/hbase-metrics-cli/cmd/scenarios"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/config"
 	cerrors "github.com/opay-bigdata/hbase-metrics-cli/internal/errors"
 )
@@ -81,8 +82,10 @@ func Execute() int {
 // register is implemented in init.go to keep newRootCmd minimal.
 func register(root *cobra.Command) {
 	root.AddCommand(newVersionCmd())
-	// scenarios.Register(root) added in Task 8
+	if err := scenarios.Register(root, LoadEffectiveConfig, func() string { return globals.Format }, func() bool { return globals.DryRun }); err != nil {
+		fmt.Fprintf(os.Stderr, "scenario registration failed: %v\n", err)
+		os.Exit(cerrors.ExitInternal)
+	}
 	// query.Register(root) added in Task 9
 	// configcmd.Register(root) added in Task 9
-	_ = fmt.Sprint // placeholder to keep imports stable across tasks
 }
