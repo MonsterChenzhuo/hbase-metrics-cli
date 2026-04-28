@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/opay-bigdata/hbase-metrics-cli/cmd/configcmd"
 	"github.com/opay-bigdata/hbase-metrics-cli/cmd/scenarios"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/config"
 	cerrors "github.com/opay-bigdata/hbase-metrics-cli/internal/errors"
@@ -86,6 +87,6 @@ func register(root *cobra.Command) {
 		fmt.Fprintf(os.Stderr, "scenario registration failed: %v\n", err)
 		os.Exit(cerrors.ExitInternal)
 	}
-	// query.Register(root) added in Task 9
-	// configcmd.Register(root) added in Task 9
+	root.AddCommand(newQueryCmd())
+	root.AddCommand(configcmd.New())
 }
