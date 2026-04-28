@@ -1,0 +1,17 @@
+name: requests-qps
+description: Read / write / total request QPS across the cluster.
+range: true
+defaults:
+  since: 10m
+  step: 30s
+columns: [instance, read_qps, write_qps, total_qps]
+queries:
+  - label: read_qps
+    expr: |
+      sum by (instance) (rate(hadoop_hbase_readrequestcount{cluster="{{.cluster}}", role="RegionServer", sub="Server"}[1m]))
+  - label: write_qps
+    expr: |
+      sum by (instance) (rate(hadoop_hbase_writerequestcount{cluster="{{.cluster}}", role="RegionServer", sub="Server"}[1m]))
+  - label: total_qps
+    expr: |
+      sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="RegionServer", sub="Server"}[1m]))

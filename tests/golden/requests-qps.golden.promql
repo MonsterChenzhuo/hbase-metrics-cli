@@ -1,0 +1,9 @@
+# read_qps
+sum by (instance) (rate(hadoop_hbase_readrequestcount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[1m]))
+
+# write_qps
+sum by (instance) (rate(hadoop_hbase_writerequestcount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[1m]))
+
+# total_qps
+sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[1m]))
+

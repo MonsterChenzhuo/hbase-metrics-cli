@@ -1,0 +1,20 @@
+name: cluster-overview
+description: Cluster-wide HBase health summary (RS count, regions, requests, RPC P99).
+range: false
+columns: [label, value]
+queries:
+  - label: regionserver_count
+    expr: |
+      count(hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="Master", sub="Server"})
+  - label: dead_regionserver_count
+    expr: |
+      max(hadoop_hbase_numdeadregionservers{cluster="{{.cluster}}", role="Master", sub="Server"})
+  - label: total_regions
+    expr: |
+      sum(hadoop_hbase_regioncount{cluster="{{.cluster}}", role="RegionServer", sub="Server"})
+  - label: total_request_qps
+    expr: |
+      sum(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="RegionServer", sub="Server"}[1m]))
+  - label: rpc_processcalltime_p99_max
+    expr: |
+      max(hadoop_hbase_ipc_processcalltime_99th_percentile{cluster="{{.cluster}}", role="RegionServer"})
