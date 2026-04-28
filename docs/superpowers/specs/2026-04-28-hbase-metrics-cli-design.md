@@ -332,7 +332,7 @@ Skipped vs `cli/AGENTS.md`: license check (`go-licenses`) — not warranted at t
    3. `hotspot-detect` — single-RS hot spot
    4. `gc-pressure` + `jvm-memory` — JVM drag
    5. `compaction-status` + `blockcache-hitrate` — storage layer
-   7. Drill in via `queries[].expr`; fall back to `query '<promql>'` when stuck.
+   6. Drill in via `queries[].expr`; fall back to `query '<promql>'` when stuck.
 
 ## 11. Documentation
 
