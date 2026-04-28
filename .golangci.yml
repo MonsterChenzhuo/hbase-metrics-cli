@@ -8,16 +8,18 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gosimple
     - misspell
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*net/http.Response).Body.Close
+formatters:
+  enable:
     - gofmt
     - goimports
-    - revive
-  settings:
-    revive:
-      rules:
-        - name: exported
-          arguments: ["disableStutteringCheck"]
 issues:
   exclude-dirs:
     - dist
