@@ -8,7 +8,7 @@ columns: [instance, compaction_queue, compacted_cells_qps]
 queries:
   - label: compaction_queue
     expr: |
-      hadoop_hbase_compactionqueuelength{cluster="{{.cluster}}", role="RegionServer", sub="Server"}
+      hadoop_hbase_compactionqueuelength{cluster="{{.cluster}}", role="regionserver", sub="Server"}
   - label: compacted_cells_qps
     expr: |
-      sum by (instance) (rate(hadoop_hbase_compactedcellscount{cluster="{{.cluster}}", role="RegionServer", sub="Server"}[5m]))
+      sum by (instance) (rate(hadoop_hbase_compactedcellscount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]))

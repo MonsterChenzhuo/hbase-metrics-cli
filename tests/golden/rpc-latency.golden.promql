@@ -1,6 +1,6 @@
 # p99
-topk(5, hadoop_hbase_ipc_processcalltime_99th_percentile{cluster="mrs-hbase-oline", role="regionserver"})
+topk(5, hadoop_hbase_processcalltime_99th_percentile{cluster="mrs-hbase-oline", role="regionserver", sub="IPC"})
 
 # p999
-topk(5, hadoop_hbase_ipc_processcalltime_999th_percentile{cluster="mrs-hbase-oline", role="regionserver"})
+topk(5, hadoop_hbase_processcalltime_99_9th_percentile{cluster="mrs-hbase-oline", role="regionserver", sub="IPC"})
 

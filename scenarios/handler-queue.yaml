@@ -5,10 +5,10 @@ columns: [instance, general_queue, priority_queue, active_handlers]
 queries:
   - label: general_queue
     expr: |
-      hadoop_hbase_ipc_numcallsingeneralqueue{cluster="{{.cluster}}", role="RegionServer"}
+      hadoop_hbase_numcallsingeneralqueue{cluster="{{.cluster}}", role="regionserver", sub="IPC"}
   - label: priority_queue
     expr: |
-      hadoop_hbase_ipc_numcallsinpriorityqueue{cluster="{{.cluster}}", role="RegionServer"}
+      hadoop_hbase_numcallsinpriorityqueue{cluster="{{.cluster}}", role="regionserver", sub="IPC"}
   - label: active_handlers
     expr: |
-      hadoop_hbase_ipc_numactivehandler{cluster="{{.cluster}}", role="RegionServer"}
+      hadoop_hbase_numactivehandler{cluster="{{.cluster}}", role="regionserver", sub="IPC"}

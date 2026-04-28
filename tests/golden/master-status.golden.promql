@@ -1,15 +1,15 @@
 # regionservers_active
-hadoop_hbase_numregionservers{cluster="mrs-hbase-oline", role="Master", sub="Server"}
+hadoop_hbase_numregionservers{cluster="mrs-hbase-oline", role="master", sub="Server"}
 
 # regionservers_dead
-hadoop_hbase_numdeadregionservers{cluster="mrs-hbase-oline", role="Master", sub="Server"}
+hadoop_hbase_numdeadregionservers{cluster="mrs-hbase-oline", role="master", sub="Server"}
 
 # average_load
-hadoop_hbase_averageload{cluster="mrs-hbase-oline", role="Master", sub="Server"}
+hadoop_hbase_averageload{cluster="mrs-hbase-oline", role="master", sub="Server"}
 
 # regions_in_transition
-hadoop_hbase_ritcount{cluster="mrs-hbase-oline", role="Master", sub="AssignmentManager"}
+hadoop_hbase_ritcount{cluster="mrs-hbase-oline", role="master", sub="AssignmentManager"}
 
 # rit_oldest_age_ms
-hadoop_hbase_ritoldestage{cluster="mrs-hbase-oline", role="Master", sub="AssignmentManager"}
+hadoop_hbase_ritoldestage{cluster="mrs-hbase-oline", role="master", sub="AssignmentManager"}
 

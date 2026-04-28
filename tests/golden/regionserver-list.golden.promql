@@ -1,9 +1,9 @@
 # regions
-hadoop_hbase_regioncount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}
+hadoop_hbase_regioncount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}
 
 # qps
-sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[1m]))
+sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m]))
 
 # heap_used_mb
-hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="RegionServer", sub="JvmMetrics"}
+hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="regionserver"}
 

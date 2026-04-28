@@ -7,9 +7,9 @@ defaults:
 flags:
   - name: role
     type: string
-    default: RegionServer
-    enum: [Master, RegionServer]
-    help: Role label value (Master | RegionServer)
+    default: regionserver
+    enum: [master, regionserver]
+    help: Role label value (master | regionserver)
   - name: top
     type: int
     default: 10
@@ -18,7 +18,7 @@ columns: [instance, p99, p999]
 queries:
   - label: p99
     expr: |
-      topk({{.top}}, hadoop_hbase_ipc_processcalltime_99th_percentile{cluster="{{.cluster}}", role="{{.role}}"})
+      topk({{.top}}, hadoop_hbase_processcalltime_99th_percentile{cluster="{{.cluster}}", role="{{.role}}", sub="IPC"})
   - label: p999
     expr: |
-      topk({{.top}}, hadoop_hbase_ipc_processcalltime_999th_percentile{cluster="{{.cluster}}", role="{{.role}}"})
+      topk({{.top}}, hadoop_hbase_processcalltime_99_9th_percentile{cluster="{{.cluster}}", role="{{.role}}", sub="IPC"})

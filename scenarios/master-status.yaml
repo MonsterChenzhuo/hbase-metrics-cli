@@ -5,16 +5,16 @@ columns: [label, value]
 queries:
   - label: regionservers_active
     expr: |
-      hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="Master", sub="Server"}
+      hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="master", sub="Server"}
   - label: regionservers_dead
     expr: |
-      hadoop_hbase_numdeadregionservers{cluster="{{.cluster}}", role="Master", sub="Server"}
+      hadoop_hbase_numdeadregionservers{cluster="{{.cluster}}", role="master", sub="Server"}
   - label: average_load
     expr: |
-      hadoop_hbase_averageload{cluster="{{.cluster}}", role="Master", sub="Server"}
+      hadoop_hbase_averageload{cluster="{{.cluster}}", role="master", sub="Server"}
   - label: regions_in_transition
     expr: |
-      hadoop_hbase_ritcount{cluster="{{.cluster}}", role="Master", sub="AssignmentManager"}
+      hadoop_hbase_ritcount{cluster="{{.cluster}}", role="master", sub="AssignmentManager"}
   - label: rit_oldest_age_ms
     expr: |
-      hadoop_hbase_ritoldestage{cluster="{{.cluster}}", role="Master", sub="AssignmentManager"}
+      hadoop_hbase_ritoldestage{cluster="{{.cluster}}", role="master", sub="AssignmentManager"}

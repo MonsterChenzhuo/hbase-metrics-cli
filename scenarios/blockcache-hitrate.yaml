@@ -5,10 +5,10 @@ columns: [instance, hit_ratio_pct, size_mb, evicted_qps]
 queries:
   - label: hit_ratio_pct
     expr: |
-      hadoop_hbase_blockcachehitcachingratio{cluster="{{.cluster}}", role="RegionServer", sub="Server"}
+      hadoop_hbase_blockcacheexpresshitpercent{cluster="{{.cluster}}", role="regionserver", sub="Server"}
   - label: size_mb
     expr: |
-      hadoop_hbase_blockcachesize{cluster="{{.cluster}}", role="RegionServer", sub="Server"} / 1024 / 1024
+      hadoop_hbase_blockcachesize{cluster="{{.cluster}}", role="regionserver", sub="Server"} / 1024 / 1024
   - label: evicted_qps
     expr: |
-      sum by (instance) (rate(hadoop_hbase_blockcacheevictedcount{cluster="{{.cluster}}", role="RegionServer", sub="Server"}[5m]))
+      sum by (instance) (rate(hadoop_hbase_blockcacheevictioncount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]))

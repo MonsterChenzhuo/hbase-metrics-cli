@@ -1,15 +1,15 @@
 # regionserver_count
-count(hadoop_hbase_numregionservers{cluster="mrs-hbase-oline", role="Master", sub="Server"})
+count(hadoop_hbase_numregionservers{cluster="mrs-hbase-oline", role="master", sub="Server"})
 
 # dead_regionserver_count
-max(hadoop_hbase_numdeadregionservers{cluster="mrs-hbase-oline", role="Master", sub="Server"})
+max(hadoop_hbase_numdeadregionservers{cluster="mrs-hbase-oline", role="master", sub="Server"})
 
 # total_regions
-sum(hadoop_hbase_regioncount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"})
+sum(hadoop_hbase_regioncount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"})
 
 # total_request_qps
-sum(rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[1m]))
+sum(rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m]))
 
 # rpc_processcalltime_p99_max
-max(hadoop_hbase_ipc_processcalltime_99th_percentile{cluster="mrs-hbase-oline", role="RegionServer"})
+max(hadoop_hbase_processcalltime_99th_percentile{cluster="mrs-hbase-oline", role="regionserver", sub="IPC"})
 

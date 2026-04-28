@@ -87,7 +87,11 @@ func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
 		return output.Envelope{}, err
 	}
 
-	env.Data = mergeByInstance(rendered, results, in.Scenario.Range)
+	if isLabelValueMode(in.Scenario.Columns) {
+		env.Data = aggregateLabelValue(rendered, results, in.Scenario.Range)
+	} else {
+		env.Data = mergeByInstance(rendered, results, in.Scenario.Range)
+	}
 	if len(env.Data) == 0 {
 		return env, cerrors.WithHint(
 			cerrors.Errorf(cerrors.CodeNoData, "scenario %s returned no data", in.Scenario.Name),
@@ -95,6 +99,32 @@ func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
 		)
 	}
 	return env, nil
+}
+
+// isLabelValueMode reports whether the scenario projects scalar query results
+// into a two-column [label, value] table (one row per query).
+func isLabelValueMode(cols []string) bool {
+	return len(cols) == 2 && cols[0] == "label" && cols[1] == "value"
+}
+
+// aggregateLabelValue produces one row per query: {label: query_label, value: scalar}.
+// Used for cluster-wide summaries where each query returns a single aggregated number
+// without an instance label.
+func aggregateLabelValue(rendered []promql.Rendered, results []vmclient.Result, isRange bool) []output.Row {
+	rows := make([]output.Row, 0, len(rendered))
+	for i, res := range results {
+		row := output.Row{"label": rendered[i].Label, "value": nil}
+		if len(res.Result) > 0 {
+			sample := res.Result[0]
+			if isRange {
+				row["value"] = sample.Values
+			} else {
+				row["value"] = parseFloat(sample.Value)
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 // mergeByInstance turns N parallel query results into one row per instance,

@@ -1,6 +1,6 @@
 # compaction_queue
-hadoop_hbase_compactionqueuelength{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}
+hadoop_hbase_compactionqueuelength{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}
 
 # compacted_cells_qps
-sum by (instance) (rate(hadoop_hbase_compactedcellscount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[5m]))
+sum by (instance) (rate(hadoop_hbase_compactedcellscount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]))
 

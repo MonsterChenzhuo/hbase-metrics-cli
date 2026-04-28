@@ -8,10 +8,10 @@ columns: [instance, append_qps, sync_p99_ms, slow_appends_per_min]
 queries:
   - label: append_qps
     expr: |
-      sum by (instance) (rate(hadoop_hbase_appendcount{cluster="{{.cluster}}", role="RegionServer", sub="WAL"}[1m]))
+      sum by (instance) (rate(hadoop_hbase_appendcount{cluster="{{.cluster}}", role="regionserver", sub="WAL"}[1m]))
   - label: sync_p99_ms
     expr: |
-      hadoop_hbase_synctime_99th_percentile{cluster="{{.cluster}}", role="RegionServer", sub="WAL"}
+      hadoop_hbase_synctime_99th_percentile{cluster="{{.cluster}}", role="regionserver", sub="WAL"}
   - label: slow_appends_per_min
     expr: |
-      sum by (instance) (rate(hadoop_hbase_slowappendcount{cluster="{{.cluster}}", role="RegionServer", sub="WAL"}[5m])) * 60
+      sum by (instance) (rate(hadoop_hbase_slowappendcount{cluster="{{.cluster}}", role="regionserver", sub="WAL"}[5m])) * 60
