@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	defaultVMURL    = "https://vm.example.invalid/"
-	defaultCluster  = ""
-	defaultTimeout  = 10 * time.Second
-	configFileName  = "config.yaml"
+	defaultVMURL   = "https://vm.example.invalid/"
+	defaultCluster = ""
+	defaultTimeout = 10 * time.Second
+	configFileName = "config.yaml"
 )
 
 type Source string

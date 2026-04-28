@@ -18,13 +18,13 @@ var version = "dev"
 
 // Globals populated by flag parsing on the root command.
 type globalFlags struct {
-	VMURL          string
-	Cluster        string
-	BasicAuthUser  string
-	BasicAuthPass  string
-	Timeout        time.Duration
-	Format         string
-	DryRun         bool
+	VMURL         string
+	Cluster       string
+	BasicAuthUser string
+	BasicAuthPass string
+	Timeout       time.Duration
+	Format        string
+	DryRun        bool
 }
 
 var globals globalFlags
