@@ -1,0 +1,14 @@
+name: gc-pressure
+description: GC count and elapsed time per RegionServer (per-collector).
+range: true
+defaults:
+  since: 15m
+  step: 1m
+columns: [instance, gc_count_per_min, gc_time_ms_per_min]
+queries:
+  - label: gc_count_per_min
+    expr: |
+      sum by (instance) (rate(jvm_gc_collectioncount{cluster="{{.cluster}}", role="RegionServer"}[5m])) * 60
+  - label: gc_time_ms_per_min
+    expr: |
+      sum by (instance) (rate(jvm_gc_collectiontime{cluster="{{.cluster}}", role="RegionServer"}[5m])) * 60

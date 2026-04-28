@@ -1,0 +1,15 @@
+name: jvm-memory
+description: JVM heap and non-heap usage per RegionServer.
+range: false
+columns: [instance, heap_used_mb, heap_max_mb, heap_used_pct]
+queries:
+  - label: heap_used_mb
+    expr: |
+      hadoop_hbase_memheapusedm{cluster="{{.cluster}}", role="RegionServer", sub="JvmMetrics"}
+  - label: heap_max_mb
+    expr: |
+      hadoop_hbase_memheapmaxm{cluster="{{.cluster}}", role="RegionServer", sub="JvmMetrics"}
+  - label: heap_used_pct
+    expr: |
+      100 * hadoop_hbase_memheapusedm{cluster="{{.cluster}}", role="RegionServer", sub="JvmMetrics"}
+        / hadoop_hbase_memheapmaxm{cluster="{{.cluster}}", role="RegionServer", sub="JvmMetrics"}

@@ -1,0 +1,10 @@
+# heap_used_mb
+hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="RegionServer", sub="JvmMetrics"}
+
+# heap_max_mb
+hadoop_hbase_memheapmaxm{cluster="mrs-hbase-oline", role="RegionServer", sub="JvmMetrics"}
+
+# heap_used_pct
+100 * hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="RegionServer", sub="JvmMetrics"}
+  / hadoop_hbase_memheapmaxm{cluster="mrs-hbase-oline", role="RegionServer", sub="JvmMetrics"}
+

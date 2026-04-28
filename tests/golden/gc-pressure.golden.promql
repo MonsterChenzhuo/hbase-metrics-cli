@@ -1,0 +1,6 @@
+# gc_count_per_min
+sum by (instance) (rate(jvm_gc_collectioncount{cluster="mrs-hbase-oline", role="RegionServer"}[5m])) * 60
+
+# gc_time_ms_per_min
+sum by (instance) (rate(jvm_gc_collectiontime{cluster="mrs-hbase-oline", role="RegionServer"}[5m])) * 60
+
