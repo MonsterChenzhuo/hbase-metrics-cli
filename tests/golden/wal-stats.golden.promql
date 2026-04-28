@@ -1,0 +1,9 @@
+# append_qps
+sum by (instance) (rate(hadoop_hbase_appendcount{cluster="mrs-hbase-oline", role="RegionServer", sub="WAL"}[1m]))
+
+# sync_p99_ms
+hadoop_hbase_synctime_99th_percentile{cluster="mrs-hbase-oline", role="RegionServer", sub="WAL"}
+
+# slow_appends_per_min
+sum by (instance) (rate(hadoop_hbase_slowappendcount{cluster="mrs-hbase-oline", role="RegionServer", sub="WAL"}[5m])) * 60
+

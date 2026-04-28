@@ -1,0 +1,9 @@
+# hit_ratio_pct
+hadoop_hbase_blockcachehitcachingratio{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}
+
+# size_mb
+hadoop_hbase_blockcachesize{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"} / 1024 / 1024
+
+# evicted_qps
+sum by (instance) (rate(hadoop_hbase_blockcacheevictedcount{cluster="mrs-hbase-oline", role="RegionServer", sub="Server"}[5m]))
+
