@@ -167,10 +167,13 @@ func Execute() int {
 
 - [ ] **Step 7: Verify build and commit**
 
+The repo is already initialized (the spec and plan are already committed).
+
 ```bash
 go build ./...
 go vet ./...
-git init && git add . && git commit -m "chore: project skeleton"
+git add go.mod go.sum main.go Makefile .gitignore .golangci.yml cmd/root.go
+git commit -m "chore: project skeleton"
 ```
 
 Expected: build succeeds, vet clean.
@@ -1161,21 +1164,41 @@ git commit -m "feat(vmclient): add VictoriaMetrics query/query_range client"
 ## Task 6: `internal/promql` — load embedded scenarios + render templates
 
 **Files:**
-- Create: `scenarios/_meta.yaml` (placeholder so embed.FS isn't empty before Task 10)
+- Create: `scenarios/embed.go` (host the `embed.FS` — Go embed cannot use `..` paths)
+- Create: `scenarios/_meta.yaml` (placeholder so the embed pattern has ≥1 match before Task 10)
 - Create: `internal/promql/scenarios.go`
 - Create: `internal/promql/promql.go`
 - Create: `internal/promql/promql_test.go`
 
-- [ ] **Step 1: Add a placeholder embed source so `internal/promql` compiles**
+- [ ] **Step 1: Create `scenarios/embed.go`**
 
-`scenarios/_meta.yaml`:
+Go's `//go:embed` directive cannot use `..` paths, so the embed FS must live in the same directory as the YAML files. We declare a separate package `scenariosdata` and expose its FS:
+
+```go
+// Package scenariosdata embeds the scenario YAML templates so they ship
+// inside the binary. The package is consumed by internal/promql.
+package scenariosdata
+
+import "embed"
+
+// FS contains every *.yaml file in this directory. The `all:` prefix
+// ensures files starting with `_` (like _meta.yaml) are included; the
+// loader filters them out by name.
+//
+//go:embed all:*.yaml
+var FS embed.FS
+```
+
+- [ ] **Step 2: Create `scenarios/_meta.yaml` placeholder**
+
+The embed pattern requires at least one matching file at compile time. Real scenarios are added in Tasks 10–14; this placeholder keeps the build green meanwhile and is filtered by the loader (filename starts with `_`).
 
 ```yaml
 # Placeholder — real scenarios live in cluster-overview.yaml, rpc-latency.yaml, ...
 # This file is ignored by the loader (filename starts with `_`).
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [ ] **Step 3: Write the failing test**
 
 `internal/promql/promql_test.go`:
 
@@ -1228,7 +1251,7 @@ func TestParseScenario_ValidatesRequiredFields(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the test to confirm it fails**
+- [ ] **Step 4: Run the test to confirm it fails**
 
 ```bash
 go test ./internal/promql/...
@@ -1236,23 +1259,21 @@ go test ./internal/promql/...
 
 Expected: compile errors.
 
-- [ ] **Step 4: Implement `internal/promql/scenarios.go`**
+- [ ] **Step 5: Implement `internal/promql/scenarios.go`**
 
 ```go
 package promql
 
 import (
-	"embed"
 	"fmt"
 	"io/fs"
 	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
-)
 
-//go:embed all:../../scenarios
-var scenariosFS embed.FS
+	scenariosdata "github.com/opay-bigdata/hbase-metrics-cli/scenarios"
+)
 
 type Flag struct {
 	Name    string   `yaml:"name"`
@@ -1277,17 +1298,23 @@ type Scenario struct {
 	Columns     []string       `yaml:"columns"`
 }
 
+// LoadEmbedded loads every scenario YAML compiled into the binary,
+// skipping files whose name starts with `_` (placeholders / disabled).
 func LoadEmbedded() ([]Scenario, error) {
-	entries, err := fs.ReadDir(scenariosFS, "../../scenarios")
+	return loadFS(scenariosdata.FS)
+}
+
+func loadFS(efs fs.FS) ([]Scenario, error) {
+	entries, err := fs.ReadDir(efs, ".")
 	if err != nil {
-		return nil, fmt.Errorf("read embedded scenarios: %w", err)
+		return nil, fmt.Errorf("read scenarios FS: %w", err)
 	}
 	var out []Scenario
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") || strings.HasPrefix(e.Name(), "_") {
 			continue
 		}
-		b, err := fs.ReadFile(scenariosFS, "../../scenarios/"+e.Name())
+		b, err := fs.ReadFile(efs, e.Name())
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", e.Name(), err)
 		}
@@ -1316,7 +1343,7 @@ func ParseScenario(b []byte) (Scenario, error) {
 }
 ```
 
-- [ ] **Step 5: Implement `internal/promql/promql.go`**
+- [ ] **Step 6: Implement `internal/promql/promql.go`**
 
 ```go
 // Package promql renders scenario PromQL templates with caller-supplied vars.
@@ -1360,7 +1387,7 @@ func Render(s Scenario, vars Vars) ([]Rendered, error) {
 }
 ```
 
-- [ ] **Step 6: Run tests to confirm pass**
+- [ ] **Step 7: Run tests to confirm pass**
 
 ```bash
 go test ./internal/promql/...
@@ -1368,7 +1395,7 @@ go test ./internal/promql/...
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add scenarios internal/promql
@@ -1750,7 +1777,7 @@ func parseFloat(v []any) any {
 package scenarios
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -1886,26 +1913,11 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 
 func isNoData(err error) bool {
 	var ce *cerrors.CodedError
-	if !errorsAs(err, &ce) {
+	if !errors.As(err, &ce) {
 		return false
 	}
 	return ce.Code == cerrors.CodeNoData
 }
-
-// errorsAs is a tiny wrapper to keep imports tidy.
-func errorsAs(err error, target **cerrors.CodedError) bool {
-	if err == nil {
-		return false
-	}
-	if ce, ok := err.(*cerrors.CodedError); ok {
-		*target = ce
-		return true
-	}
-	return false
-}
-
-// Avoid unused import warning before context is used in any of the helpers above.
-var _ = context.Background
 ```
 
 - [ ] **Step 5: Update `cmd/root.go` `register` to wire scenarios**
@@ -2053,7 +2065,7 @@ package configcmd
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"time"
 
@@ -2068,14 +2080,15 @@ func newInitCmd() *cobra.Command {
 		Short: "Interactively create ~/.config/hbase-metrics-cli/config.yaml",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			r := bufio.NewReader(cmd.InOrStdin())
+			w := cmd.OutOrStdout()
 			cfg := &config.Config{Timeout: 10 * time.Second}
-			cfg.VMURL = prompt(r, cmd.OutOrStdout(), "VictoriaMetrics URL", "https://vm.example.com/")
-			cfg.DefaultCluster = prompt(r, cmd.OutOrStdout(), "Default cluster label", "")
-			cfg.BasicAuth.Username = prompt(r, cmd.OutOrStdout(), "Basic Auth username (blank to skip)", "")
+			cfg.VMURL = prompt(r, w, "VictoriaMetrics URL", "https://vm.example.com/")
+			cfg.DefaultCluster = prompt(r, w, "Default cluster label", "")
+			cfg.BasicAuth.Username = prompt(r, w, "Basic Auth username (blank to skip)", "")
 			if cfg.BasicAuth.Username != "" {
-				cfg.BasicAuth.Password = prompt(r, cmd.OutOrStdout(), "Basic Auth password", "")
+				cfg.BasicAuth.Password = prompt(r, w, "Basic Auth password", "")
 			}
-			to := prompt(r, cmd.OutOrStdout(), "HTTP timeout", "10s")
+			to := prompt(r, w, "HTTP timeout", "10s")
 			d, err := time.ParseDuration(to)
 			if err != nil {
 				return fmt.Errorf("invalid timeout %q: %w", to, err)
@@ -2085,36 +2098,11 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 			path, _ := config.ConfigPath()
-			fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\n", path)
+			fmt.Fprintf(w, "wrote %s\n", path)
 			return nil
 		},
 	}
 }
-
-func prompt(r *bufio.Reader, w *os.File, label, def string) string {
-	fmt.Fprintf(w, "%s [%s]: ", label, def)
-	line, _ := r.ReadString('\n')
-	line = strings.TrimSpace(line)
-	if line == "" {
-		return def
-	}
-	return line
-}
-```
-
-Note: `cmd.OutOrStdout()` returns `io.Writer`, not `*os.File` — adjust signature:
-
-Replace `prompt` signature with:
-
-```go
-func prompt(r *bufio.Reader, w interface{ Write([]byte) (int, error) }, label, def string) string {
-	fmt.Fprintf(w.(interface{ Write([]byte) (int, error) }), "%s [%s]: ", label, def)
-```
-
-Simpler — use `io.Writer`:
-
-```go
-import "io"
 
 func prompt(r *bufio.Reader, w io.Writer, label, def string) string {
 	fmt.Fprintf(w, "%s [%s]: ", label, def)
