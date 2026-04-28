@@ -12,13 +12,33 @@ A Go CLI for diagnosing HBase clusters via VictoriaMetrics — built for **Claud
 
 ## Install
 
+### One-liner (recommended)
+
+Installs the latest release binary into `/usr/local/bin` and the bundled Claude Code skill into `~/.claude/skills/hbase-metrics/`. Re-run the same command to upgrade.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MonsterChenzhuo/hbase-metrics-cli/main/scripts/install.sh | bash
+```
+
+Common overrides:
+
+```bash
+# pin a version
+curl -fsSL https://raw.githubusercontent.com/MonsterChenzhuo/hbase-metrics-cli/main/scripts/install.sh | VERSION=v0.1.0 bash
+
+# install to a non-sudo path, skip the skill
+curl -fsSL https://raw.githubusercontent.com/MonsterChenzhuo/hbase-metrics-cli/main/scripts/install.sh | PREFIX="$HOME/.local/bin" NO_SKILL=1 bash
+```
+
+Supported envs: `VERSION`, `PREFIX`, `SKILL_DIR`, `NO_SUDO`, `NO_SKILL`, `REPO`. See `scripts/install.sh` header for details.
+
 ### From source
 
 ```bash
 go install github.com/opay-bigdata/hbase-metrics-cli@latest
 ```
 
-### From release
+### From release (manual)
 
 Download the archive for your OS from GitHub Releases, then `tar -xzf … && mv hbase-metrics-cli /usr/local/bin/`.
 

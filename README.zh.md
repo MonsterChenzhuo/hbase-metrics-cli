@@ -12,13 +12,33 @@
 
 ## 安装
 
+### 一键安装（推荐）
+
+下载最新 release 二进制到 `/usr/local/bin`，并把内置 Claude Code skill 安装到 `~/.claude/skills/hbase-metrics/`。重复执行即升级。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MonsterChenzhuo/hbase-metrics-cli/main/scripts/install.sh | bash
+```
+
+常见覆盖参数：
+
+```bash
+# 锁定版本
+curl -fsSL https://raw.githubusercontent.com/MonsterChenzhuo/hbase-metrics-cli/main/scripts/install.sh | VERSION=v0.1.0 bash
+
+# 装到无需 sudo 的目录、跳过 skill
+curl -fsSL https://raw.githubusercontent.com/MonsterChenzhuo/hbase-metrics-cli/main/scripts/install.sh | PREFIX="$HOME/.local/bin" NO_SKILL=1 bash
+```
+
+可用环境变量：`VERSION`、`PREFIX`、`SKILL_DIR`、`NO_SUDO`、`NO_SKILL`、`REPO`，详见 `scripts/install.sh` 头部注释。
+
 ### 源码安装
 
 ```bash
 go install github.com/opay-bigdata/hbase-metrics-cli@latest
 ```
 
-### 二进制安装
+### 手动二进制安装
 
 从 GitHub Releases 下载对应操作系统的 archive，`tar -xzf … && mv hbase-metrics-cli /usr/local/bin/`。
 
