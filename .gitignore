@@ -1,0 +1,16 @@
+# Binaries
+/hbase-metrics-cli
+/dist/
+
+# Test artifacts
+/coverage.out
+/*.test
+
+# Editor
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local config
+config.local.yaml
