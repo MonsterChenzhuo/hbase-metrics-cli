@@ -1,0 +1,14 @@
+name: handler-queue
+description: IPC handler queue length and active handler count per RegionServer.
+range: false
+columns: [instance, general_queue, priority_queue, active_handlers]
+queries:
+  - label: general_queue
+    expr: |
+      hadoop_hbase_ipc_numcallsingeneralqueue{cluster="{{.cluster}}", role="RegionServer"}
+  - label: priority_queue
+    expr: |
+      hadoop_hbase_ipc_numcallsinpriorityqueue{cluster="{{.cluster}}", role="RegionServer"}
+  - label: active_handlers
+    expr: |
+      hadoop_hbase_ipc_numactivehandler{cluster="{{.cluster}}", role="RegionServer"}

@@ -1,0 +1,9 @@
+# general_queue
+hadoop_hbase_ipc_numcallsingeneralqueue{cluster="mrs-hbase-oline", role="RegionServer"}
+
+# priority_queue
+hadoop_hbase_ipc_numcallsinpriorityqueue{cluster="mrs-hbase-oline", role="RegionServer"}
+
+# active_handlers
+hadoop_hbase_ipc_numactivehandler{cluster="mrs-hbase-oline", role="RegionServer"}
+

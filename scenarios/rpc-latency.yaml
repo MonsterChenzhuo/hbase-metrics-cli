@@ -1,0 +1,24 @@
+name: rpc-latency
+description: HBase RegionServer / Master RPC P99 / P999 latency (ms), top-K instances.
+range: true
+defaults:
+  since: 10m
+  step: 30s
+flags:
+  - name: role
+    type: string
+    default: RegionServer
+    enum: [Master, RegionServer]
+    help: Role label value (Master | RegionServer)
+  - name: top
+    type: int
+    default: 10
+    help: Top-K instances by P99
+columns: [instance, p99, p999]
+queries:
+  - label: p99
+    expr: |
+      topk({{.top}}, hadoop_hbase_ipc_processcalltime_99th_percentile{cluster="{{.cluster}}", role="{{.role}}"})
+  - label: p999
+    expr: |
+      topk({{.top}}, hadoop_hbase_ipc_processcalltime_999th_percentile{cluster="{{.cluster}}", role="{{.role}}"})
