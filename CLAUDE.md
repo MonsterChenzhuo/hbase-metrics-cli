@@ -20,22 +20,26 @@ main.go
        ├─ cmd/query.go           raw PromQL escape hatch
        ├─ cmd/configcmd/         config init / config show
        └─ cmd/scenarios/         auto-registers one cobra cmd per YAML
-            ├─ register.go       walks promql.LoadEmbedded(), wires flags
-            └─ runner.go         render → errgroup parallel queries (limit 4) → merge by instance → output
+            ├─ register.go       walks promql.LoadEmbedded(), wires flags (incl. --since/--step/--raw)
+            ├─ runner.go         pickMode → render → errgroup parallel queries (limit 4) → merge/summarize → output
+            ├─ summarize.go      summary-mode aggregation (per-instance & label-value), deterministic via sort.Slice
+            └─ export_test_support.go  exposes buildEnvelope as BuildEnvelopeForGolden for envelope goldens
 
 internal/
+  ├─ aggregate/ pure summary math (max/avg/p99/last, NaN/Inf exclusion, NaNRatio)
   ├─ config/    layered config (flag > env > file > default), Source tracking
   ├─ errors/    CodedError {Code, Message, Hint}, exit codes 0/1/2/3
-  ├─ output/    Envelope rendering: json | table | markdown
-  ├─ promql/    embed.FS YAML loader + text/template renderer
+  ├─ output/    Envelope rendering: json | table | markdown (mode ∈ instant|summary|raw)
+  ├─ promql/    embed.FS YAML loader + text/template renderer (Range/InstantSummary/Summary/SummaryColumns)
+  ├─ stepauto/  auto-step resolver: 30m→30s, 2h→1m, 12h→2m, 24h→5m, >24h→10m
   └─ vmclient/  VM /api/v1/query{,_range} client with HTTP→error mapping
 
 scenarios/        12 *.yaml + embed.go (//go:embed all:*.yaml)
-tests/golden/     12 golden PromQL files + golden_test.go (-update flag)
-tests/e2e/        dryrun_test.go behind //go:build e2e
+tests/golden/     12 PromQL goldens + 10 envelope JSON goldens (summary/raw shape locks) + golden_test.go (-update)
+tests/e2e/        dryrun_test.go behind //go:build e2e (incl. hybrid cluster-overview check)
 ```
 
-**Boundaries are strict:** `vmclient` knows nothing about scenarios; `promql` knows nothing about HTTP; `output` knows nothing about PromQL. Don't cross these.
+**Boundaries are strict:** `vmclient` knows nothing about scenarios; `promql` knows nothing about HTTP; `output` knows nothing about PromQL; `aggregate` is pure math (no I/O, no envelopes). Don't cross these.
 
 ## Build, test, lint
 
@@ -155,10 +159,14 @@ Parallel queries inside a scenario use `errgroup.WithContext` with `SetLimit(4)`
 
 ## Spec & plan
 
-- Design spec: `docs/superpowers/specs/2026-04-28-hbase-metrics-cli-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-04-28-hbase-metrics-cli.md`
+- v0.1 design spec: `docs/superpowers/specs/2026-04-28-hbase-metrics-cli-design.md`
+- v0.1 implementation plan: `docs/superpowers/plans/2026-04-28-hbase-metrics-cli.md`
+- v0.2 fixes spec: `docs/superpowers/specs/2026-04-29-hbase-metrics-cli-fixes-design.md`
+- v0.2 fixes plan: `docs/superpowers/plans/2026-04-29-hbase-metrics-cli-v020-fixes.md`
+- Release notes: `CHANGELOG.md` (see v0.2.0 for the rename map and migration steps)
+- Live walk-through: `docs/examples/2026-04-29-24h-cluster-analysis.md`
 
-Both are authoritative when in doubt about behavior — read those before changing exit codes, the Envelope schema, or the agent contract.
+The specs are authoritative when in doubt about behavior — read those before changing exit codes, the Envelope schema, or the agent contract.
 
 ## Claude Code skill
 
