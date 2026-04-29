@@ -1,20 +1,33 @@
 name: cluster-overview
 description: Cluster-wide HBase health summary (RS count, regions, requests, RPC P99).
 range: false
+instant_summary: true
 columns: [label, value]
+summary_columns: [label, max, avg, p99, last]
+summary:
+  qps_total:
+    aggs: [max, avg, p99, last]
+  rpc_p99_max_ms:
+    aggs: [max, avg, p99, last]
+  regionservers_active:
+    aggs: [max, last]
+  regionservers_dead:
+    aggs: [max, last]
+  regions_total:
+    aggs: [max, last]
 queries:
-  - label: regionserver_count
+  - label: regionservers_active
     expr: |
-      count(hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="master", sub="Server"})
-  - label: dead_regionserver_count
+      max(hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="master", sub="Server"})
+  - label: regionservers_dead
     expr: |
       max(hadoop_hbase_numdeadregionservers{cluster="{{.cluster}}", role="master", sub="Server"})
-  - label: total_regions
+  - label: regions_total
     expr: |
       sum(hadoop_hbase_regioncount{cluster="{{.cluster}}", role="regionserver", sub="Server"})
-  - label: total_request_qps
+  - label: qps_total
     expr: |
-      sum(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[1m]))
-  - label: rpc_processcalltime_p99_max
+      sum(clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]), 0))
+  - label: rpc_p99_max_ms
     expr: |
       max(hadoop_hbase_processcalltime_99th_percentile{cluster="{{.cluster}}", role="regionserver", sub="IPC"})
