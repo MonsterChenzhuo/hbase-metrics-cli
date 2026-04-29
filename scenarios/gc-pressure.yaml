@@ -5,6 +5,11 @@ defaults:
   since: 15m
   step: 1m
 columns: [instance, gc_count_per_min, gc_time_ms_per_min]
+summary:
+  gc_count_per_min:
+    aggs: [max, avg, last]
+  gc_time_ms_per_min:
+    aggs: [max, avg, p99, last]
 queries:
   - label: gc_count_per_min
     expr: |
