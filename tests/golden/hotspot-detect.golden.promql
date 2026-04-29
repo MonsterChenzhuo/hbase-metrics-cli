@@ -1,5 +1,5 @@
 # qps
-topk(5, sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m])))
+topk(5, sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]), 0)))
 
 # active_handlers
 topk(5, hadoop_hbase_numactivehandler{cluster="mrs-hbase-oline", role="regionserver", sub="IPC"})

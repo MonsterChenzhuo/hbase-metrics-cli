@@ -10,7 +10,7 @@ columns: [instance, qps, active_handlers]
 queries:
   - label: qps
     expr: |
-      topk({{.top}}, sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[1m])))
+      topk({{.top}}, sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]), 0)))
   - label: active_handlers
     expr: |
       topk({{.top}}, hadoop_hbase_numactivehandler{cluster="{{.cluster}}", role="regionserver", sub="IPC"})
