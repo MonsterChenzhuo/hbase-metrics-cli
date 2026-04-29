@@ -1,9 +1,9 @@
 # read_qps
-sum by (instance) (rate(hadoop_hbase_readrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m]))
+sum by (instance) (clamp_min(rate(hadoop_hbase_readrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]), 0))
 
 # write_qps
-sum by (instance) (rate(hadoop_hbase_writerequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m]))
+sum by (instance) (clamp_min(rate(hadoop_hbase_writerequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]), 0))
 
 # total_qps
-sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m]))
+sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]), 0))
 
