@@ -104,6 +104,9 @@ hbase-metrics-cli cluster-overview --format json
 | `--timeout` | `10s` | HTTP 超时 |
 | `--format` | `json` | `json` / `table` / `markdown` |
 | `--dry-run` | `false` | 仅打印渲染后的 PromQL，不发请求 |
+| `--since` | 未设 | 时间窗口（如 `30m` / `2h` / `24h`）。range 场景始终生效；instant 场景仅当声明 `instant_summary: true` 时生效（目前为 `cluster-overview`）。 |
+| `--step` | `auto` | range 查询步长。`auto` 按窗口大小自动选取 30s / 1m / 2m / 5m / 10m。可显式覆盖。 |
+| `--raw` | `false` | range 场景配合 `--since` 时返回原始数据点矩阵，跳过聚合摘要。 |
 
 各场景独有参数：`hbase-metrics-cli <scenario> --help`。
 
@@ -113,14 +116,19 @@ hbase-metrics-cli cluster-overview --format json
 
 ```json
 {
-  "scenario": "rpc-latency",
+  "scenario": "cluster-overview",
   "cluster": "mrs-hbase-oline",
-  "range": {"start": "...", "end": "...", "step": "30s"},
-  "queries": [{"label": "p99", "expr": "topk(10, ...)"}],
-  "columns": ["instance", "p99", "p999"],
-  "data": [{"instance": "10.0.0.1:19110", "p99": 12.3, "p999": 25.1}]
+  "mode": "summary",
+  "range": {"start": "...", "end": "...", "step": "5m"},
+  "queries": [{"label": "qps_total", "expr": "..."}],
+  "columns": ["label", "max", "avg", "p99", "last"],
+  "data": [
+    {"label": "qps_total", "max": 4321.0, "avg": 1820.5, "p99": 4111.7, "last": 1735.2}
+  ]
 }
 ```
+
+`mode` 三选一：`instant`（无 `--since`）/ `summary`（窗口查询默认）/ `raw`（`--raw`）。
 
 **stderr** —— 结构化错误：
 
@@ -129,6 +137,10 @@ hbase-metrics-cli cluster-overview --format json
 ```
 
 **退出码：** `0` 成功 / NoData 警告 · `1` 内部错 · `2` 用户错 · `3` VM 故障。
+
+## 真实案例
+
+一份完整 24 小时诊断（cluster-overview → rpc-latency → hotspot-detect → gc-pressure → blockcache-hitrate 等）见 [`docs/examples/2026-04-29-24h-cluster-analysis.md`](docs/examples/2026-04-29-24h-cluster-analysis.md)，演示了内置 Claude Code skill 推荐的诊断 playbook。
 
 ## 配置文件
 

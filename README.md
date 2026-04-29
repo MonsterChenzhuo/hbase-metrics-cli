@@ -104,6 +104,9 @@ hbase-metrics-cli cluster-overview --format json
 | `--timeout` | `10s` | HTTP timeout |
 | `--format` | `json` | `json` / `table` / `markdown` |
 | `--dry-run` | `false` | Print rendered PromQL, skip HTTP |
+| `--since` | unset | Time window (e.g. `30m`, `2h`, `24h`). Range scenarios always use it; instant scenarios use it only if they declare `instant_summary: true` (currently `cluster-overview`). |
+| `--step` | `auto` | PromQL step for range queries. `auto` resolves to 30s / 1m / 2m / 5m / 10m by window size. Use `30s` etc. to override. |
+| `--raw` | `false` | For range scenarios under `--since`, return the raw datapoint matrix instead of the per-instance summary. |
 
 Per-scenario flags are listed via `hbase-metrics-cli <scenario> --help`.
 
@@ -113,14 +116,19 @@ Per-scenario flags are listed via `hbase-metrics-cli <scenario> --help`.
 
 ```json
 {
-  "scenario": "rpc-latency",
+  "scenario": "cluster-overview",
   "cluster": "mrs-hbase-oline",
-  "range": {"start": "...", "end": "...", "step": "30s"},
-  "queries": [{"label": "p99", "expr": "topk(10, ...)"}],
-  "columns": ["instance", "p99", "p999"],
-  "data": [{"instance": "10.0.0.1:19110", "p99": 12.3, "p999": 25.1}]
+  "mode": "summary",
+  "range": {"start": "...", "end": "...", "step": "5m"},
+  "queries": [{"label": "qps_total", "expr": "..."}],
+  "columns": ["label", "max", "avg", "p99", "last"],
+  "data": [
+    {"label": "qps_total", "max": 4321.0, "avg": 1820.5, "p99": 4111.7, "last": 1735.2}
+  ]
 }
 ```
+
+`mode` is always one of `instant` (no `--since`), `summary` (default for windowed queries), or `raw` (`--raw`).
 
 **stderr** — structured errors:
 
@@ -129,6 +137,10 @@ Per-scenario flags are listed via `hbase-metrics-cli <scenario> --help`.
 ```
 
 **Exit codes:** `0` success / NoData warning · `1` internal · `2` user error · `3` VM failure.
+
+## Real-world example
+
+A live 24-hour diagnostic walk-through (cluster-overview → rpc-latency → hotspot-detect → gc-pressure → blockcache-hitrate, etc.) is captured at [`docs/examples/2026-04-29-24h-cluster-analysis.md`](docs/examples/2026-04-29-24h-cluster-analysis.md). It demonstrates the recommended diagnostic playbook from the bundled Claude Code skill.
 
 ## Configuration
 
