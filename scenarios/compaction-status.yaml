@@ -5,6 +5,11 @@ defaults:
   since: 30m
   step: 1m
 columns: [instance, compaction_queue, compacted_cells_qps]
+summary:
+  compaction_queue:
+    aggs: [max, avg, last]
+  compacted_cells_qps:
+    aggs: [max, avg]
 queries:
   - label: compaction_queue
     expr: |
