@@ -85,5 +85,3 @@ func quantile(sorted []float64, q float64) float64 {
 	}
 	return sorted[idx]
 }
-
-func strconvFmt(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) }

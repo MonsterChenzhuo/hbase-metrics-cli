@@ -1,7 +1,7 @@
 package aggregate
 
 import (
-	"math"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -74,9 +74,14 @@ func TestSummarize_AllInvalid(t *testing.T) {
 	s := Summarize(datapoints("NaN", "+Inf"))
 	require.Equal(t, 2, s.Count)
 	require.Equal(t, 1.0, s.NaNRatio)
-	require.True(t, math.IsNaN(s.Avg) || s.Avg == 0)
+	require.Equal(t, 0.0, s.Avg)
+	require.Equal(t, 0.0, s.Min)
+	require.Equal(t, 0.0, s.Max)
+	require.Equal(t, 0.0, s.P50)
+	require.Equal(t, 0.0, s.P99)
+	require.Equal(t, 0.0, s.Last)
 }
 
 func fmtFloat(f float64) string {
-	return strconvFmt(f)
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }
