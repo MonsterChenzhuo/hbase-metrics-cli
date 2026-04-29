@@ -56,12 +56,13 @@ Before committing changes you MUST verify `make tidy && make lint && make unit-t
 
 Zero Go code changes. Drop a YAML into `scenarios/`, regenerate goldens, commit.
 
-1. Create `scenarios/<my-scenario>.yaml`. Schema:
+1. Create `scenarios/<my-scenario>.yaml`. Schema (v0.2.0):
 
 ```yaml
 name: my-scenario               # must match filename stem
 description: Short one-liner.
 range: false                    # true for query_range, false for instant
+instant_summary: false          # optional: instant + accepts --since for windowed summary
 defaults:                       # only when range: true
   since: 5m
   step: 30s
@@ -71,12 +72,26 @@ flags:                          # optional per-scenario flags
     default: 10
     enum: [10, 20]              # optional
     help: Top-K rows
-columns: [instance, p99]        # output column order for table/markdown
+columns: [instance, p99]        # column order in raw / instant mode
+summary_columns: [label, max, avg, p99, last]  # optional: column order in summary mode (label-value scenarios)
+summary:                        # optional: per-query agg overrides (default [max, avg, p99, last])
+  p99:
+    aggs: [max, avg, p99, last]
 queries:
   - label: p99
     expr: |
       topk({{.top}}, hadoop_hbase_..._99th_percentile{cluster="{{.cluster}}", role="RegionServer"})
 ```
+
+**Mode routing** (compiled in `cmd/scenarios/runner.go::pickMode`):
+
+```
+mode = raw      if --raw
+       summary  if scenario.range || (scenario.instant_summary && --since)
+       instant  otherwise
+```
+
+**Counter-reset convention:** every `rate()` expression wraps with `clamp_min(rate(...[5m]), 0)` and uses `[5m]` minimum. Use `max(...)` (not `count(...)`) for "active resource" gauges so a scrape miss doesn't drop the value.
 
 2. Regenerate the golden file (note: zsh expands `./tests/golden/...` weirdly, so use the full import path):
 
@@ -110,6 +125,8 @@ Codes are defined in `internal/errors/errors.go`. **stderr** carries the JSON er
 ### Output
 
 Build an `output.Envelope` and call `output.Render(globals.Format, env, cmd.OutOrStdout())`. Don't print directly. Don't print to `os.Stdout` from inside `RunE` — use `cmd.OutOrStdout()` so tests can capture.
+
+The envelope always includes `mode` (one of `instant` | `summary` | `raw`). Per-instance summary rows are sorted by `instance` for deterministic output.
 
 ### HTTP
 
