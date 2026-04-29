@@ -1,14 +1,14 @@
 name: regionserver-list
 description: Per-RegionServer region count, request QPS, and heap usage.
 range: false
-columns: [instance, regions, qps, heap_used_mb]
+columns: [instance, regions_count, qps_total, heap_used_mb]
 queries:
-  - label: regions
+  - label: regions_count
     expr: |
       hadoop_hbase_regioncount{cluster="{{.cluster}}", role="regionserver", sub="Server"}
-  - label: qps
+  - label: qps_total
     expr: |
-      sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[1m]))
+      sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]), 0))
   - label: heap_used_mb
     expr: |
       hadoop_hbase_memheapusedm{cluster="{{.cluster}}", role="regionserver"}

@@ -1,8 +1,8 @@
-# regions
+# regions_count
 hadoop_hbase_regioncount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}
 
-# qps
-sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[1m]))
+# qps_total
+sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]), 0))
 
 # heap_used_mb
 hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="regionserver"}
