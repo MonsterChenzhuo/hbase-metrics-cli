@@ -7,3 +7,6 @@ hadoop_hbase_blockcachesize{cluster="mrs-hbase-oline", role="regionserver", sub=
 # evicted_qps
 sum by (instance) (rate(hadoop_hbase_blockcacheevictioncount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]))
 
+# read_qps_recent
+sum by (instance) (clamp_min(rate(hadoop_hbase_readrequestcount{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}[5m]), 0))
+

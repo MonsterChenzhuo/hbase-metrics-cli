@@ -1,7 +1,7 @@
 name: blockcache-hitrate
-description: BlockCache hit ratio and size per RegionServer.
+description: BlockCache hit ratio and size per RegionServer (with read volume context).
 range: false
-columns: [instance, hit_ratio_pct, size_mb, evicted_qps]
+columns: [instance, hit_ratio_pct, size_mb, evicted_qps, read_qps_recent]
 queries:
   - label: hit_ratio_pct
     expr: |
@@ -12,3 +12,6 @@ queries:
   - label: evicted_qps
     expr: |
       sum by (instance) (rate(hadoop_hbase_blockcacheevictioncount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]))
+  - label: read_qps_recent
+    expr: |
+      sum by (instance) (clamp_min(rate(hadoop_hbase_readrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]), 0))
