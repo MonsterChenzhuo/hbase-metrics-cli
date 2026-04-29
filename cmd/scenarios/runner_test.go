@@ -56,3 +56,42 @@ func TestRun_InstantQueryPopulatesData(t *testing.T) {
 	require.Equal(t, "a", out.Data[0]["instance"])
 	require.InDelta(t, 1.5, out.Data[0]["x"], 1e-9)
 }
+
+func TestPickMode(t *testing.T) {
+	cases := []struct {
+		name           string
+		scenarioRange  bool
+		instantSummary bool
+		hasSince       bool
+		raw            bool
+		want           string
+	}{
+		{"plain instant", false, false, false, false, "instant"},
+		{"range default summary", true, false, true, false, "summary"},
+		{"range with --raw", true, false, true, true, "raw"},
+		{"hybrid instant scenario without --since", false, true, false, false, "instant"},
+		{"hybrid instant scenario with --since", false, true, true, false, "summary"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := promql.Scenario{Range: c.scenarioRange, InstantSummary: c.instantSummary}
+			require.Equal(t, c.want, pickMode(s, c.hasSince, c.raw))
+		})
+	}
+}
+
+func TestRun_RangeSummaryEmitsModeAndColumns(t *testing.T) {
+	scenario := promql.Scenario{
+		Name:    "fake-range",
+		Range:   true,
+		Columns: []string{"instance", "qps"},
+		Queries: []promql.Query{{Label: "qps", Expr: "x"}},
+	}
+	results := []vmclient.Result{
+		{Result: []vmclient.Sample{sample("rs1", "10", "20", "30")}},
+	}
+	env := buildEnvelope(scenario, []promql.Rendered{{Label: "qps", Expr: "x"}}, results, "summary")
+	require.Equal(t, "summary", env.Mode)
+	require.Contains(t, env.Columns, "qps_max")
+	require.Equal(t, 30.0, env.Data[0]["qps_max"])
+}

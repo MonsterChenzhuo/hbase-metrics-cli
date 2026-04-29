@@ -20,10 +20,89 @@ type Inputs struct {
 	Vars     promql.Vars
 	Client   *vmclient.Client
 	DryRun   bool
-	// Range params (only used when Scenario.Range is true)
-	End   time.Time
-	Step  time.Duration
-	Since time.Duration
+	Raw      bool
+	HasSince bool
+	End      time.Time
+	Step     time.Duration
+	Since    time.Duration
+}
+
+// pickMode chooses one of "instant" | "summary" | "raw" given scenario shape and flags.
+func pickMode(s promql.Scenario, hasSince, raw bool) string {
+	isRange := s.Range || (s.InstantSummary && hasSince)
+	switch {
+	case isRange && raw:
+		return "raw"
+	case isRange:
+		return "summary"
+	default:
+		return "instant"
+	}
+}
+
+// summaryColumns returns the per-instance summary column list, defaulting to
+// `<label>_<agg>` derived from queries × aggsFor(...).
+func summaryColumns(s promql.Scenario) []string {
+	if len(s.SummaryColumns) > 0 {
+		return s.SummaryColumns
+	}
+	cols := []string{"instance"}
+	for _, q := range s.Queries {
+		for _, agg := range aggsFor(s, q.Label) {
+			cols = append(cols, q.Label+"_"+agg)
+		}
+	}
+	return cols
+}
+
+// labelValueSummaryColumns is used when Columns starts with [label, value]
+// — it expands to [label, <aggs of first query>].
+func labelValueSummaryColumns(s promql.Scenario) []string {
+	if len(s.SummaryColumns) > 0 {
+		return s.SummaryColumns
+	}
+	cols := []string{"label"}
+	if len(s.Queries) > 0 {
+		cols = append(cols, aggsFor(s, s.Queries[0].Label)...)
+	}
+	return cols
+}
+
+// buildEnvelope is the post-fetch projection step, isolated for testability.
+func buildEnvelope(s promql.Scenario, rendered []promql.Rendered, results []vmclient.Result, mode string) output.Envelope {
+	env := output.Envelope{
+		Scenario: s.Name,
+		Mode:     mode,
+		Queries:  make([]output.Query, len(rendered)),
+	}
+	for i, r := range rendered {
+		env.Queries[i] = output.Query{Label: r.Label, Expr: r.Expr}
+	}
+	switch mode {
+	case "summary":
+		if isLabelValueMode(s.Columns) {
+			env.Columns = labelValueSummaryColumns(s)
+			env.Data = summarizeLabelValue(s, rendered, results)
+		} else {
+			env.Columns = summaryColumns(s)
+			env.Data = summarizeByInstance(s, rendered, results)
+		}
+	case "raw":
+		env.Columns = s.Columns
+		if isLabelValueMode(s.Columns) {
+			env.Data = aggregateLabelValue(rendered, results, true)
+		} else {
+			env.Data = mergeByInstance(rendered, results, true)
+		}
+	default: // instant
+		env.Columns = s.Columns
+		if isLabelValueMode(s.Columns) {
+			env.Data = aggregateLabelValue(rendered, results, false)
+		} else {
+			env.Data = mergeByInstance(rendered, results, false)
+		}
+	}
+	return env
 }
 
 func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
@@ -32,16 +111,12 @@ func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
 		return output.Envelope{}, cerrors.Errorf(cerrors.CodeFlagInvalid, "render scenario %s: %v", in.Scenario.Name, err)
 	}
 	cluster, _ := in.Vars["cluster"].(string)
-	env := output.Envelope{
-		Scenario: in.Scenario.Name,
-		Cluster:  cluster,
-		Queries:  make([]output.Query, len(rendered)),
-		Columns:  in.Scenario.Columns,
-	}
-	for i, r := range rendered {
-		env.Queries[i] = output.Query{Label: r.Label, Expr: r.Expr}
-	}
-	if in.Scenario.Range {
+	mode := pickMode(in.Scenario, in.HasSince, in.Raw)
+	isRange := mode == "summary" || mode == "raw"
+
+	env := buildEnvelope(in.Scenario, rendered, nil, mode)
+	env.Cluster = cluster
+	if isRange {
 		end := in.End
 		if end.IsZero() {
 			end = time.Now()
@@ -67,7 +142,7 @@ func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
 				res *vmclient.Result
 				err error
 			)
-			if in.Scenario.Range {
+			if isRange {
 				end := in.End
 				if end.IsZero() {
 					end = time.Now()
@@ -87,11 +162,9 @@ func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
 		return output.Envelope{}, err
 	}
 
-	if isLabelValueMode(in.Scenario.Columns) {
-		env.Data = aggregateLabelValue(rendered, results, in.Scenario.Range)
-	} else {
-		env.Data = mergeByInstance(rendered, results, in.Scenario.Range)
-	}
+	full := buildEnvelope(in.Scenario, rendered, results, mode)
+	env.Data = full.Data
+	env.Columns = full.Columns
 	if len(env.Data) == 0 {
 		return env, cerrors.WithHint(
 			cerrors.Errorf(cerrors.CodeNoData, "scenario %s returned no data", in.Scenario.Name),
