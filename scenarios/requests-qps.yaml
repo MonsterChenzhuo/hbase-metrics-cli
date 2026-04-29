@@ -1,9 +1,9 @@
 name: requests-qps
-description: Read / write / total request QPS across the cluster.
+description: Read / write / total request QPS across the cluster. Default window 1h captures bursts that 10m would miss on quiet-but-spiky clusters.
 range: true
 defaults:
-  since: 10m
-  step: 30s
+  since: 1h
+  step: 1m
 columns: [instance, read_qps, write_qps, total_qps]
 summary:
   read_qps:

@@ -17,7 +17,9 @@ Project-specific instructions for Claude Code (and other AI agents) working in t
 main.go
   └─ cmd/root.go                 cobra root, global flags, LoadEffectiveConfig()
        ├─ cmd/version.go         version subcommand
-       ├─ cmd/query.go           raw PromQL escape hatch
+       ├─ cmd/query.go           raw PromQL escape hatch (warns when no cluster filter)
+       ├─ cmd/labels.go          label-key discovery for a metric
+       ├─ cmd/labelcheck.go      verify a label is actually emitted on a metric
        ├─ cmd/configcmd/         config init / config show
        └─ cmd/scenarios/         auto-registers one cobra cmd per YAML
             ├─ register.go       walks promql.LoadEmbedded(), wires flags (incl. --since/--step/--raw)
@@ -136,9 +138,37 @@ The envelope always includes `mode` (one of `instant` | `summary` | `raw`). Per-
 
 Always go through `vmclient.New(vmclient.Options{...}).Query{,Range}(ctx, ...)`. The client does HTTP→`CodedError` mapping (5xx → `CodeVMHTTP5XX`, 4xx → `CodeVMHTTP4XX`, transport → `CodeVMUnreachable`). Don't add a second HTTP client.
 
+**Retry**: `vmclient` retries transient failures with exponential backoff (default 200ms × 3, capped by `MaxRetries` = 2 = three total attempts). Retried: network errors, HTTP 429, HTTP 5XX. Not retried: 4XX 401/403/404/422 (permanent — auth/parse). Tune via `Options.MaxRetries` / `Options.RetryBaseDelay`. Backoff respects `ctx`. Tests live in `internal/vmclient/vmclient_test.go::TestRetry_*`.
+
+For schema discovery (label keys / values), use `vmclient.Series(ctx, selector, since)` — it hits `/api/v1/series` and reuses the same retry path.
+
 ### Concurrency
 
 Parallel queries inside a scenario use `errgroup.WithContext` with `SetLimit(4)`. If you add new parallel work in `cmd/scenarios/runner.go`, keep the cap at 4 — VM rate limiting was the reason.
+
+## Schema-discovery subcommands (v0.2.x)
+
+When writing PromQL or debugging "filter returns nothing", reach for these
+before guessing — broken label filters are silently empty in PromQL and
+look identical to "no data".
+
+```bash
+# What labels does this metric carry, and how many distinct values each?
+hbase-metrics-cli labels hadoop_hbase_clusterrequests
+
+# Does this metric actually expose a `master` label?
+hbase-metrics-cli label-check hadoop_hbase_clusterrequests master
+```
+
+Both hit `/api/v1/series` (via `vmclient.Series`), auto-scope to
+`--cluster` if set, and emit the standard envelope. `label-check` returns
+`status: present|missing` with a hint pointing at alternatives when
+missing — useful since PromQL won't error out on absent labels, it just
+silently no-ops the filter.
+
+The `query` subcommand emits a stderr warning when the raw PromQL has no
+`cluster=` selector. Non-blocking — pipe through `2>/dev/null` if you
+intentionally want a multi-cluster view.
 
 ## Things NOT to do
 

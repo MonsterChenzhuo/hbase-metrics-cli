@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -10,6 +12,15 @@ import (
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/output"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/vmclient"
 )
+
+// queryHasClusterFilter is a coarse heuristic — true when the raw PromQL
+// references a `cluster=` label match. Good enough to nudge users; not a
+// PromQL parser. Exposed (unexported but testable in cmd package) so the
+// warning logic can be unit-tested.
+func queryHasClusterFilter(expr string) bool {
+	return strings.Contains(expr, "cluster=") || strings.Contains(expr, "cluster!=") ||
+		strings.Contains(expr, "cluster=~") || strings.Contains(expr, "cluster!~")
+}
 
 func newQueryCmd() *cobra.Command {
 	return &cobra.Command{
@@ -20,6 +31,11 @@ func newQueryCmd() *cobra.Command {
 			cfg, err := LoadEffectiveConfig()
 			if err != nil {
 				return err
+			}
+			if !queryHasClusterFilter(args[0]) && cfg.DefaultCluster != "" {
+				fmt.Fprintf(cmd.ErrOrStderr(),
+					"warning: query has no cluster filter; results may span all clusters. Add `cluster=%q` to scope it.\n",
+					cfg.DefaultCluster)
 			}
 			client := vmclient.New(vmclient.Options{
 				BaseURL:       cfg.VMURL,

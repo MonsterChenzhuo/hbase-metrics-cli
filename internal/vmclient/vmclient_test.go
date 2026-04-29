@@ -86,5 +86,84 @@ func TestStatusFailedReturns4XX(t *testing.T) {
 	require.Contains(t, err.Error(), "parse error")
 }
 
+func TestRetry_RecoversAfter503(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		if hits < 3 {
+			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Timeout: 2 * time.Second, MaxRetries: 3, RetryBaseDelay: 1 * time.Millisecond})
+	_, err := c.Query(context.Background(), "up", time.Now())
+	require.NoError(t, err)
+	require.Equal(t, 3, hits, "should have retried twice after 2x 503 then succeeded")
+}
+
+func TestRetry_NoRetryOn401(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Timeout: 2 * time.Second, MaxRetries: 3, RetryBaseDelay: 1 * time.Millisecond})
+	_, err := c.Query(context.Background(), "up", time.Now())
+	require.Error(t, err)
+	require.Equal(t, 1, hits, "401 is permanent and must not be retried")
+}
+
+func TestRetry_RetriesOn429(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		if hits == 1 {
+			http.Error(w, "too many requests", http.StatusTooManyRequests)
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Timeout: 2 * time.Second, MaxRetries: 2, RetryBaseDelay: 1 * time.Millisecond})
+	_, err := c.Query(context.Background(), "up", time.Now())
+	require.NoError(t, err)
+	require.Equal(t, 2, hits)
+}
+
+func TestRetry_GivesUpAfterMaxAttempts(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Timeout: 2 * time.Second, MaxRetries: 2, RetryBaseDelay: 1 * time.Millisecond})
+	_, err := c.Query(context.Background(), "up", time.Now())
+	require.Error(t, err)
+	require.Equal(t, 3, hits, "should have made 1 initial + 2 retries = 3 attempts")
+}
+
+func TestSeries_ReturnsLabelSets(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/series", r.URL.Path)
+		require.Equal(t, `up{cluster="c1"}`, r.URL.Query().Get("match[]"))
+		_, _ = w.Write([]byte(`{"status":"success","data":[{"__name__":"up","cluster":"c1","instance":"a"},{"__name__":"up","cluster":"c1","instance":"b"}]}`))
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Timeout: 2 * time.Second})
+	out, err := c.Series(context.Background(), `up{cluster="c1"}`, 0)
+	require.NoError(t, err)
+	require.Len(t, out, 2)
+	require.Equal(t, "a", out[0]["instance"])
+}
+
 // guard for unused import on Go versions
 var _ = json.RawMessage{}
