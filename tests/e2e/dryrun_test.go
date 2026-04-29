@@ -56,3 +56,25 @@ func TestDryRun_AllScenariosEmitJSONWithRenderedExpr(t *testing.T) {
 		})
 	}
 }
+
+func TestDryRun_HybridClusterOverview(t *testing.T) {
+	bin := binaryPath(t)
+	cmd := exec.Command(bin, "cluster-overview",
+		"--vm-url", "http://localhost:0",
+		"--cluster", "mrs-hbase-oline",
+		"--since", "24h",
+		"--dry-run",
+		"--format", "json",
+	)
+	var out, errb bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errb
+	require.NoError(t, cmd.Run(), "stderr=%s", errb.String())
+
+	var env map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &env))
+	require.Equal(t, "summary", env["mode"])
+	rng, ok := env["range"].(map[string]any)
+	require.True(t, ok, "expected range envelope, got %v", env["range"])
+	require.Equal(t, "5m0s", rng["step"])
+}
