@@ -4,6 +4,7 @@ package scenarios
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -227,6 +228,11 @@ func mergeByInstance(rendered []promql.Rendered, results []vmclient.Result, isRa
 	for _, r := range rows {
 		out = append(out, r)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		ai, _ := out[i]["instance"].(string)
+		aj, _ := out[j]["instance"].(string)
+		return ai < aj
+	})
 	return out
 }
 

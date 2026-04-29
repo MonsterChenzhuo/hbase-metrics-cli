@@ -1,0 +1,84 @@
+{
+  "scenario": "rpc-latency",
+  "cluster": "mrs-hbase-oline",
+  "mode": "raw",
+  "queries": [
+    {
+      "label": "p99",
+      "expr": "topk(5, hadoop_hbase_processcalltime_99th_percentile{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"IPC\"})\n"
+    },
+    {
+      "label": "p999",
+      "expr": "topk(5, hadoop_hbase_processcalltime_99_9th_percentile{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"IPC\"})\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "p99",
+    "p999"
+  ],
+  "data": [
+    {
+      "instance": "rs-a:19110",
+      "p99": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "p999": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ]
+    },
+    {
+      "instance": "rs-b:19110",
+      "p99": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "p999": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ]
+    }
+  ]
+}

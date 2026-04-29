@@ -1,0 +1,66 @@
+{
+  "scenario": "requests-qps",
+  "cluster": "mrs-hbase-oline",
+  "mode": "summary",
+  "queries": [
+    {
+      "label": "read_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_readrequestcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]), 0))\n"
+    },
+    {
+      "label": "write_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_writerequestcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]), 0))\n"
+    },
+    {
+      "label": "total_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]), 0))\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "read_qps_max",
+    "read_qps_avg",
+    "read_qps_p99",
+    "read_qps_last",
+    "write_qps_max",
+    "write_qps_avg",
+    "write_qps_p99",
+    "write_qps_last",
+    "total_qps_max",
+    "total_qps_avg",
+    "total_qps_p99",
+    "total_qps_last"
+  ],
+  "data": [
+    {
+      "instance": "rs-a:19110",
+      "read_qps_avg": 20,
+      "read_qps_last": 30,
+      "read_qps_max": 30,
+      "read_qps_p99": 30,
+      "total_qps_avg": 20,
+      "total_qps_last": 30,
+      "total_qps_max": 30,
+      "total_qps_p99": 30,
+      "write_qps_avg": 20,
+      "write_qps_last": 30,
+      "write_qps_max": 30,
+      "write_qps_p99": 30
+    },
+    {
+      "instance": "rs-b:19110",
+      "read_qps_avg": 20,
+      "read_qps_last": 30,
+      "read_qps_max": 30,
+      "read_qps_p99": 30,
+      "total_qps_avg": 20,
+      "total_qps_last": 30,
+      "total_qps_max": 30,
+      "total_qps_p99": 30,
+      "write_qps_avg": 20,
+      "write_qps_last": 30,
+      "write_qps_max": 30,
+      "write_qps_p99": 30
+    }
+  ]
+}

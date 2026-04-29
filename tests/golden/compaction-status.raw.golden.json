@@ -1,0 +1,84 @@
+{
+  "scenario": "compaction-status",
+  "cluster": "mrs-hbase-oline",
+  "mode": "raw",
+  "queries": [
+    {
+      "label": "compaction_queue",
+      "expr": "hadoop_hbase_compactionqueuelength{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}\n"
+    },
+    {
+      "label": "compacted_cells_qps",
+      "expr": "sum by (instance) (rate(hadoop_hbase_compactedcellscount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]))\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "compaction_queue",
+    "compacted_cells_qps"
+  ],
+  "data": [
+    {
+      "compacted_cells_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "compaction_queue": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "instance": "rs-a:19110"
+    },
+    {
+      "compacted_cells_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "compaction_queue": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "instance": "rs-b:19110"
+    }
+  ]
+}

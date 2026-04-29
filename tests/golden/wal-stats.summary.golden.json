@@ -1,0 +1,57 @@
+{
+  "scenario": "wal-stats",
+  "cluster": "mrs-hbase-oline",
+  "mode": "summary",
+  "queries": [
+    {
+      "label": "append_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_appendcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"WAL\"}[5m]), 0))\n"
+    },
+    {
+      "label": "sync_p99_ms",
+      "expr": "hadoop_hbase_synctime_99th_percentile{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"WAL\"}\n"
+    },
+    {
+      "label": "slow_appends_per_min",
+      "expr": "sum by (instance) (rate(hadoop_hbase_slowappendcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"WAL\"}[5m])) * 60\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "append_qps_max",
+    "append_qps_avg",
+    "append_qps_last",
+    "sync_p99_ms_max",
+    "sync_p99_ms_avg",
+    "sync_p99_ms_p99",
+    "sync_p99_ms_last",
+    "slow_appends_per_min_max",
+    "slow_appends_per_min_avg"
+  ],
+  "data": [
+    {
+      "append_qps_avg": 20,
+      "append_qps_last": 30,
+      "append_qps_max": 30,
+      "instance": "rs-a:19110",
+      "slow_appends_per_min_avg": 20,
+      "slow_appends_per_min_max": 30,
+      "sync_p99_ms_avg": 20,
+      "sync_p99_ms_last": 30,
+      "sync_p99_ms_max": 30,
+      "sync_p99_ms_p99": 30
+    },
+    {
+      "append_qps_avg": 20,
+      "append_qps_last": 30,
+      "append_qps_max": 30,
+      "instance": "rs-b:19110",
+      "slow_appends_per_min_avg": 20,
+      "slow_appends_per_min_max": 30,
+      "sync_p99_ms_avg": 20,
+      "sync_p99_ms_last": 30,
+      "sync_p99_ms_max": 30,
+      "sync_p99_ms_p99": 30
+    }
+  ]
+}

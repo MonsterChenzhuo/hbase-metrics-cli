@@ -1,0 +1,84 @@
+{
+  "scenario": "gc-pressure",
+  "cluster": "mrs-hbase-oline",
+  "mode": "raw",
+  "queries": [
+    {
+      "label": "gc_count_per_min",
+      "expr": "sum by (instance) (rate(jvm_gc_collectioncount{cluster=\"mrs-hbase-oline\", role=\"regionserver\"}[5m])) * 60\n"
+    },
+    {
+      "label": "gc_time_ms_per_min",
+      "expr": "sum by (instance) (rate(jvm_gc_collectiontime{cluster=\"mrs-hbase-oline\", role=\"regionserver\"}[5m])) * 60\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "gc_count_per_min",
+    "gc_time_ms_per_min"
+  ],
+  "data": [
+    {
+      "gc_count_per_min": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "gc_time_ms_per_min": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "instance": "rs-a:19110"
+    },
+    {
+      "gc_count_per_min": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "gc_time_ms_per_min": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "instance": "rs-b:19110"
+    }
+  ]
+}

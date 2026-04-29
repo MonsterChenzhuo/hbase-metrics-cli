@@ -1,0 +1,117 @@
+{
+  "scenario": "requests-qps",
+  "cluster": "mrs-hbase-oline",
+  "mode": "raw",
+  "queries": [
+    {
+      "label": "read_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_readrequestcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]), 0))\n"
+    },
+    {
+      "label": "write_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_writerequestcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]), 0))\n"
+    },
+    {
+      "label": "total_qps",
+      "expr": "sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster=\"mrs-hbase-oline\", role=\"regionserver\", sub=\"Server\"}[5m]), 0))\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "read_qps",
+    "write_qps",
+    "total_qps"
+  ],
+  "data": [
+    {
+      "instance": "rs-a:19110",
+      "read_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "total_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "write_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ]
+    },
+    {
+      "instance": "rs-b:19110",
+      "read_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "total_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ],
+      "write_qps": [
+        [
+          1700000000,
+          "10"
+        ],
+        [
+          1700000030,
+          "20"
+        ],
+        [
+          1700000060,
+          "30"
+        ]
+      ]
+    }
+  ]
+}

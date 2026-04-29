@@ -1,6 +1,8 @@
 package scenarios
 
 import (
+	"sort"
+
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/aggregate"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/output"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/promql"
@@ -43,6 +45,11 @@ func summarizeByInstance(scenario promql.Scenario, rendered []promql.Rendered, r
 	for _, r := range rows {
 		out = append(out, r)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		ai, _ := out[i]["instance"].(string)
+		aj, _ := out[j]["instance"].(string)
+		return ai < aj
+	})
 	return out
 }
 

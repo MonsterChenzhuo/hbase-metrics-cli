@@ -1,0 +1,47 @@
+{
+  "scenario": "gc-pressure",
+  "cluster": "mrs-hbase-oline",
+  "mode": "summary",
+  "queries": [
+    {
+      "label": "gc_count_per_min",
+      "expr": "sum by (instance) (rate(jvm_gc_collectioncount{cluster=\"mrs-hbase-oline\", role=\"regionserver\"}[5m])) * 60\n"
+    },
+    {
+      "label": "gc_time_ms_per_min",
+      "expr": "sum by (instance) (rate(jvm_gc_collectiontime{cluster=\"mrs-hbase-oline\", role=\"regionserver\"}[5m])) * 60\n"
+    }
+  ],
+  "columns": [
+    "instance",
+    "gc_count_per_min_max",
+    "gc_count_per_min_avg",
+    "gc_count_per_min_last",
+    "gc_time_ms_per_min_max",
+    "gc_time_ms_per_min_avg",
+    "gc_time_ms_per_min_p99",
+    "gc_time_ms_per_min_last"
+  ],
+  "data": [
+    {
+      "gc_count_per_min_avg": 20,
+      "gc_count_per_min_last": 30,
+      "gc_count_per_min_max": 30,
+      "gc_time_ms_per_min_avg": 20,
+      "gc_time_ms_per_min_last": 30,
+      "gc_time_ms_per_min_max": 30,
+      "gc_time_ms_per_min_p99": 30,
+      "instance": "rs-a:19110"
+    },
+    {
+      "gc_count_per_min_avg": 20,
+      "gc_count_per_min_last": 30,
+      "gc_count_per_min_max": 30,
+      "gc_time_ms_per_min_avg": 20,
+      "gc_time_ms_per_min_last": 30,
+      "gc_time_ms_per_min_max": 30,
+      "gc_time_ms_per_min_p99": 30,
+      "instance": "rs-b:19110"
+    }
+  ]
+}
