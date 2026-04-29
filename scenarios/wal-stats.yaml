@@ -5,10 +5,17 @@ defaults:
   since: 15m
   step: 30s
 columns: [instance, append_qps, sync_p99_ms, slow_appends_per_min]
+summary:
+  append_qps:
+    aggs: [max, avg, last]
+  sync_p99_ms:
+    aggs: [max, avg, p99, last]
+  slow_appends_per_min:
+    aggs: [max, avg]
 queries:
   - label: append_qps
     expr: |
-      sum by (instance) (rate(hadoop_hbase_appendcount{cluster="{{.cluster}}", role="regionserver", sub="WAL"}[1m]))
+      sum by (instance) (clamp_min(rate(hadoop_hbase_appendcount{cluster="{{.cluster}}", role="regionserver", sub="WAL"}[5m]), 0))
   - label: sync_p99_ms
     expr: |
       hadoop_hbase_synctime_99th_percentile{cluster="{{.cluster}}", role="regionserver", sub="WAL"}
