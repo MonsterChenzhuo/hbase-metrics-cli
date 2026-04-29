@@ -23,11 +23,11 @@ jobs:
       - name: unit tests
         run: go test -race -count=1 ./...
       - name: build
-        run: go build -ldflags "-s -w -X github.com/opay-bigdata/hbase-metrics-cli/cmd.version=ci" -o bin/hbase-metrics-cli .
+        run: go build -ldflags "-s -w -X github.com/opay-bigdata/hbase-metrics-cli/cmd.version=ci" -o hbase-metrics-cli .
       - name: smoke
         run: |
-          ./bin/hbase-metrics-cli --help
-          ./bin/hbase-metrics-cli version
+          ./hbase-metrics-cli --help
+          ./hbase-metrics-cli version
       - name: e2e dry-run
         run: go test -race -count=1 -tags=e2e ./tests/e2e/...
       - name: lint skill
