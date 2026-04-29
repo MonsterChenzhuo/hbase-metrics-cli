@@ -18,13 +18,13 @@ hbase-metrics-cli rpc-latency --top 10 --since 24h
 
 `p99_max` highlights the top offender; `p99_avg` rules out a transient spike. None of the 3 RS broke the 100ms threshold.
 
-## 3. Hotspot — `hotspot-detect --top 5 --since 24h`
+## 3. Hotspot — `hotspot-detect --top 5`
 
 ```bash
-hbase-metrics-cli hotspot-detect --top 5 --since 24h
+hbase-metrics-cli hotspot-detect --top 5
 ```
 
-`qps_max` reports the per-RS peak. The skew was within 2× — no single-RS hotspot. (If `qps_max / qps_avg > 5` for one instance, that instance is hot.)
+`qps` is the current top-K per-RS QPS. The skew was within 2× — no single-RS hotspot. (For trend over time, query `requests-qps --since 24h` instead and look at `total_qps_max / total_qps_avg` per instance.)
 
 ## 4. JVM pressure — `gc-pressure --since 24h` + `jvm-memory`
 

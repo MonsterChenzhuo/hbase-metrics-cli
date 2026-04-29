@@ -22,7 +22,7 @@ description: Use when diagnosing HBase cluster health/performance — RPC latenc
 | `requests-qps` | QPS trend | `hbase-metrics-cli requests-qps --since 30m` |
 | `rpc-latency` | "RPC slow" | `hbase-metrics-cli rpc-latency --top 10 --since 24h` |
 | `handler-queue` | "Stuck calls" | `hbase-metrics-cli handler-queue` |
-| `hotspot-detect` | "One RS hot" | `hbase-metrics-cli hotspot-detect --top 5 --since 24h` |
+| `hotspot-detect` | "One RS hot" | `hbase-metrics-cli hotspot-detect --top 5` |
 | `gc-pressure` | "GC heavy" | `hbase-metrics-cli gc-pressure --since 24h` |
 | `jvm-memory` | Heap close to max | `hbase-metrics-cli jvm-memory` |
 | `compaction-status` | Compaction backlog | `hbase-metrics-cli compaction-status --since 1h` |
