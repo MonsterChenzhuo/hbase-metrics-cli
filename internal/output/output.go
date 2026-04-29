@@ -27,6 +27,7 @@ type Row map[string]any
 type Envelope struct {
 	Scenario string   `json:"scenario"`
 	Cluster  string   `json:"cluster"`
+	Mode     string   `json:"mode"`
 	Range    *Range   `json:"range,omitempty"`
 	Queries  []Query  `json:"queries"`
 	Columns  []string `json:"columns,omitempty"`

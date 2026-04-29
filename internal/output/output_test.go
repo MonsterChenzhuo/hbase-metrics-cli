@@ -55,3 +55,17 @@ func TestRender_Markdown_HasPipeTable(t *testing.T) {
 func TestRender_UnknownFormat(t *testing.T) {
 	require.Error(t, Render("xml", sampleEnvelope(), &bytes.Buffer{}))
 }
+
+func TestEnvelope_ModeSerialized(t *testing.T) {
+	env := Envelope{
+		Scenario: "x",
+		Cluster:  "c",
+		Mode:     "summary",
+		Queries:  []Query{{Label: "l", Expr: "e"}},
+		Columns:  []string{"a"},
+		Data:     []Row{{"a": 1}},
+	}
+	var buf bytes.Buffer
+	require.NoError(t, Render("json", env, &buf))
+	require.Contains(t, buf.String(), `"mode": "summary"`)
+}
