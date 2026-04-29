@@ -24,14 +24,26 @@ type Query struct {
 	Expr  string `yaml:"expr"`
 }
 
+type SummarySpec struct {
+	Aggs []string `yaml:"aggs"`
+}
+
 type Scenario struct {
-	Name        string         `yaml:"name"`
-	Description string         `yaml:"description"`
-	Range       bool           `yaml:"range"`
-	Defaults    map[string]any `yaml:"defaults"`
-	Flags       []Flag         `yaml:"flags"`
-	Queries     []Query        `yaml:"queries"`
-	Columns     []string       `yaml:"columns"`
+	Name           string                 `yaml:"name"`
+	Description    string                 `yaml:"description"`
+	Range          bool                   `yaml:"range"`
+	InstantSummary bool                   `yaml:"instant_summary"`
+	Defaults       map[string]any         `yaml:"defaults"`
+	Flags          []Flag                 `yaml:"flags"`
+	Queries        []Query                `yaml:"queries"`
+	Columns        []string               `yaml:"columns"`
+	SummaryColumns []string               `yaml:"summary_columns"`
+	Summary        map[string]SummarySpec `yaml:"summary"`
+}
+
+var validAggs = map[string]struct{}{
+	"count": {}, "min": {}, "max": {}, "avg": {},
+	"p50": {}, "p95": {}, "p99": {}, "last": {},
 }
 
 // LoadEmbedded loads every scenario YAML compiled into the binary,
@@ -74,6 +86,13 @@ func ParseScenario(b []byte) (Scenario, error) {
 	}
 	if len(s.Queries) == 0 {
 		return Scenario{}, fmt.Errorf("scenario %s has no queries", s.Name)
+	}
+	for label, spec := range s.Summary {
+		for _, agg := range spec.Aggs {
+			if _, ok := validAggs[agg]; !ok {
+				return Scenario{}, fmt.Errorf("scenario %s query %q: unknown agg %q (valid: count,min,max,avg,p50,p95,p99,last)", s.Name, label, agg)
+			}
+		}
 	}
 	return s, nil
 }

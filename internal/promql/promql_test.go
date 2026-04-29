@@ -44,3 +44,63 @@ func TestParseScenario_ValidatesRequiredFields(t *testing.T) {
 	_, err := ParseScenario([]byte(`name: ""`))
 	require.Error(t, err)
 }
+
+func TestParseScenario_SummaryFields(t *testing.T) {
+	yamlStr := `
+name: my-scenario
+description: test
+range: true
+defaults:
+  since: 5m
+  step: 30s
+instant_summary: false
+summary_columns: [instance, foo_max, foo_p99]
+summary:
+  foo:
+    aggs: [max, p99]
+columns: [instance, foo]
+queries:
+  - label: foo
+    expr: rate(x[1m])
+`
+	s, err := ParseScenario([]byte(yamlStr))
+	require.NoError(t, err)
+	require.False(t, s.InstantSummary)
+	require.Equal(t, []string{"instance", "foo_max", "foo_p99"}, s.SummaryColumns)
+	require.Contains(t, s.Summary, "foo")
+	require.Equal(t, []string{"max", "p99"}, s.Summary["foo"].Aggs)
+}
+
+func TestParseScenario_InstantSummaryTrue(t *testing.T) {
+	yamlStr := `
+name: cluster-overview
+description: test
+range: false
+instant_summary: true
+columns: [label, value]
+queries:
+  - label: foo
+    expr: max(x)
+`
+	s, err := ParseScenario([]byte(yamlStr))
+	require.NoError(t, err)
+	require.True(t, s.InstantSummary)
+}
+
+func TestParseScenario_RejectsUnknownAgg(t *testing.T) {
+	yamlStr := `
+name: bad
+description: test
+range: true
+columns: [instance, foo]
+summary:
+  foo:
+    aggs: [max, garbage]
+queries:
+  - label: foo
+    expr: x
+`
+	_, err := ParseScenario([]byte(yamlStr))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "garbage")
+}
