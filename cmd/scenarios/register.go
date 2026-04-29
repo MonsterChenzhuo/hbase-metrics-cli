@@ -13,6 +13,7 @@ import (
 	cerrors "github.com/opay-bigdata/hbase-metrics-cli/internal/errors"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/output"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/promql"
+	"github.com/opay-bigdata/hbase-metrics-cli/internal/stepauto"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/vmclient"
 )
 
@@ -25,22 +26,26 @@ type FormatFn func() string
 // DryRunFn returns the global --dry-run flag.
 type DryRunFn func() bool
 
-func Register(root *cobra.Command, loadCfg LoadConfigFn, format FormatFn, dryRun DryRunFn) error {
+// RawFn returns the global --raw flag.
+type RawFn func() bool
+
+func Register(root *cobra.Command, loadCfg LoadConfigFn, format FormatFn, dryRun DryRunFn, raw RawFn) error {
 	scenarios, err := promql.LoadEmbedded()
 	if err != nil {
 		return err
 	}
 	for _, s := range scenarios {
-		root.AddCommand(buildCmd(s, loadCfg, format, dryRun))
+		root.AddCommand(buildCmd(s, loadCfg, format, dryRun, raw))
 	}
 	return nil
 }
 
-func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun DryRunFn) *cobra.Command {
+func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun DryRunFn, raw RawFn) *cobra.Command {
 	flagValues := map[string]*string{}
 	intValues := map[string]*int{}
-	since := "5m"
-	step := "30s"
+	since := ""
+	step := ""
+	rangeCapable := s.Range || s.InstantSummary
 
 	cmd := &cobra.Command{
 		Use:   s.Name,
@@ -63,17 +68,41 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 				vars[name] = *p
 			}
 
-			sinceDur, err := time.ParseDuration(since)
-			if err != nil {
-				return cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --since %q: %v", since, err)
+			hasSince := cmd.Flags().Changed("since")
+			if hasSince && !rangeCapable {
+				return cerrors.WithHint(
+					cerrors.Errorf(cerrors.CodeFlagInvalid, "scenario %q is instant; --since does not apply", s.Name),
+					"omit --since for instant scenarios; or use a time-range scenario like rpc-latency / gc-pressure",
+				)
 			}
-			stepDur, err := time.ParseDuration(step)
-			if err != nil {
-				return cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --step %q: %v", step, err)
+
+			effectiveSince := since
+			if effectiveSince == "" && s.Range {
+				effectiveSince = "5m"
 			}
-			vars["since"] = since
-			vars["step"] = step
-			vars["since_seconds"] = strconv.Itoa(int(sinceDur.Seconds()))
+			var sinceDur time.Duration
+			if effectiveSince != "" {
+				sinceDur, err = time.ParseDuration(effectiveSince)
+				if err != nil {
+					return cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --since %q: %v", effectiveSince, err)
+				}
+			}
+
+			var stepDur time.Duration
+			if step == "" || step == "auto" {
+				stepDur = stepauto.Resolve(sinceDur)
+			} else {
+				stepDur, err = time.ParseDuration(step)
+				if err != nil {
+					return cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --step %q: %v", step, err)
+				}
+			}
+
+			vars["since"] = effectiveSince
+			vars["step"] = stepDur.String()
+			if sinceDur > 0 {
+				vars["since_seconds"] = strconv.Itoa(int(sinceDur.Seconds()))
+			}
 
 			client := vmclient.New(vmclient.Options{
 				BaseURL:       cfg.VMURL,
@@ -87,6 +116,8 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 				Vars:     vars,
 				Client:   client,
 				DryRun:   dryRun(),
+				Raw:      raw(),
+				HasSince: hasSince,
 				Since:    sinceDur,
 				Step:     stepDur,
 			})
@@ -96,7 +127,7 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 			if err := output.Render(format(), env, cmd.OutOrStdout()); err != nil {
 				return err
 			}
-			if err != nil { // NoData warning -> stderr, exit 0
+			if err != nil {
 				cerrors.WriteJSON(os.Stderr, err)
 			}
 			return nil
@@ -126,13 +157,20 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 		}
 	}
 
-	if s.Range {
-		cmd.Flags().StringVar(&since, "since", "5m", "Range duration (e.g. 5m, 1h)")
-		cmd.Flags().StringVar(&step, "step", "30s", "Range step (e.g. 30s)")
+	cmd.Flags().StringVar(&since, "since", "", sinceFlagHelp(rangeCapable))
+	if rangeCapable {
+		cmd.Flags().StringVar(&step, "step", "auto", "Range step (auto | duration like 30s, 5m)")
 	}
 	cmd.Flags().Bool("range", s.Range, "")
 	_ = cmd.Flags().MarkHidden("range")
 	return cmd
+}
+
+func sinceFlagHelp(rangeCapable bool) string {
+	if rangeCapable {
+		return "Range duration (e.g. 30m, 24h)"
+	}
+	return "Not applicable for instant scenarios — omit"
 }
 
 func isNoData(err error) bool {

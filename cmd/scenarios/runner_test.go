@@ -1,14 +1,18 @@
 package scenarios
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
+	"github.com/opay-bigdata/hbase-metrics-cli/internal/config"
+	cerrors "github.com/opay-bigdata/hbase-metrics-cli/internal/errors"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/promql"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/vmclient"
 )
@@ -94,4 +98,29 @@ func TestRun_RangeSummaryEmitsModeAndColumns(t *testing.T) {
 	require.Equal(t, "summary", env.Mode)
 	require.Contains(t, env.Columns, "qps_max")
 	require.Equal(t, 30.0, env.Data[0]["qps_max"])
+}
+
+func TestSinceOnInstantScenarioYieldsHint(t *testing.T) {
+	root := &cobra.Command{Use: "root"}
+	dummyCfg := func() (*config.Config, error) {
+		return &config.Config{VMURL: "http://x", DefaultCluster: "c", Timeout: time.Second}, nil
+	}
+	require.NoError(t, Register(root,
+		dummyCfg,
+		func() string { return "json" },
+		func() bool { return true },
+		func() bool { return false },
+	))
+
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs([]string{"handler-queue", "--since", "1h"})
+
+	err := root.ExecuteContext(context.Background())
+	require.Error(t, err)
+	var ce *cerrors.CodedError
+	require.ErrorAs(t, err, &ce)
+	require.Equal(t, cerrors.CodeFlagInvalid, ce.Code)
+	require.Contains(t, ce.Hint, "instant scenarios")
 }

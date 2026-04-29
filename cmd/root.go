@@ -25,6 +25,7 @@ type globalFlags struct {
 	Timeout       time.Duration
 	Format        string
 	DryRun        bool
+	Raw           bool
 }
 
 var globals globalFlags
@@ -46,6 +47,7 @@ Claude Code (and other AI agents) can analyze HBase health.`,
 	root.PersistentFlags().DurationVar(&globals.Timeout, "timeout", 0, "HTTP timeout (e.g. 10s)")
 	root.PersistentFlags().StringVar(&globals.Format, "format", "json", "Output format: json | table | markdown")
 	root.PersistentFlags().BoolVar(&globals.DryRun, "dry-run", false, "Print rendered PromQL without calling VictoriaMetrics")
+	root.PersistentFlags().BoolVar(&globals.Raw, "raw", false, "Time-range scenarios: emit raw datapoints instead of aggregated summary")
 	return root
 }
 
@@ -83,7 +85,11 @@ func Execute() int {
 // register is implemented in init.go to keep newRootCmd minimal.
 func register(root *cobra.Command) {
 	root.AddCommand(newVersionCmd())
-	if err := scenarios.Register(root, LoadEffectiveConfig, func() string { return globals.Format }, func() bool { return globals.DryRun }); err != nil {
+	if err := scenarios.Register(root, LoadEffectiveConfig,
+		func() string { return globals.Format },
+		func() bool { return globals.DryRun },
+		func() bool { return globals.Raw },
+	); err != nil {
 		fmt.Fprintf(os.Stderr, "scenario registration failed: %v\n", err)
 		os.Exit(cerrors.ExitInternal)
 	}
