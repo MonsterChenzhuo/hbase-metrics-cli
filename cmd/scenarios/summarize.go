@@ -83,10 +83,22 @@ func toDatapoints(values [][]any) [][2]any {
 	return out
 }
 
+// pickAgg returns the requested aggregate from a Summary. When the summary
+// has zero valid datapoints (Count == 0, or every datapoint was NaN/Inf), all
+// numeric aggregates collapse to nil so JSON consumers can distinguish "no
+// data in window" from a genuine zero reading. `count` and `nan_ratio` stay
+// numeric because they describe coverage, not the metric.
 func pickAgg(s aggregate.Summary, agg string) any {
-	switch agg {
-	case "count":
+	if agg == "count" {
 		return s.Count
+	}
+	if agg == "nan_ratio" {
+		return s.NaNRatio
+	}
+	if !hasValidData(s) {
+		return nil
+	}
+	switch agg {
 	case "min":
 		return s.Min
 	case "max":
@@ -104,4 +116,11 @@ func pickAgg(s aggregate.Summary, agg string) any {
 	default:
 		return nil
 	}
+}
+
+func hasValidData(s aggregate.Summary) bool {
+	if s.Count == 0 {
+		return false
+	}
+	return s.NaNRatio < 1.0
 }

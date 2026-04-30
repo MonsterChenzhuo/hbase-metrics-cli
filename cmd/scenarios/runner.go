@@ -103,7 +103,28 @@ func buildEnvelope(s promql.Scenario, rendered []promql.Rendered, results []vmcl
 			env.Data = mergeByInstance(rendered, results, false)
 		}
 	}
+	if mode == "summary" {
+		fillMissingColumns(&env)
+	}
 	return env
+}
+
+// fillMissingColumns enforces the env.Columns schema on every row in env.Data:
+// any column missing from a row gets an explicit nil. Without this, JSON
+// consumers see a header that promises keys the row may not contain — most
+// visibly in label-value summary mode where summary_columns is hard-coded but
+// per-query summary.<label>.aggs may emit a subset.
+func fillMissingColumns(env *output.Envelope) {
+	if len(env.Columns) == 0 {
+		return
+	}
+	for _, row := range env.Data {
+		for _, col := range env.Columns {
+			if _, ok := row[col]; !ok {
+				row[col] = nil
+			}
+		}
+	}
 }
 
 func Run(ctx context.Context, in Inputs) (output.Envelope, error) {

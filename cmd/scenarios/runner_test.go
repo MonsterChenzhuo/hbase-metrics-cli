@@ -100,6 +100,89 @@ func TestRun_RangeSummaryEmitsModeAndColumns(t *testing.T) {
 	require.Equal(t, 30.0, env.Data[0]["qps_max"])
 }
 
+// Cluster-overview-style scenario: explicit summary_columns with [max, avg,
+// p99, last] but per-query aggs subset [max, last]. Every row must contain
+// every declared column; absent aggs are explicit nil so the JSON shape stays
+// stable for AI agents.
+func TestBuildEnvelope_FillsDeclaredSummaryColumnsWithNil(t *testing.T) {
+	scenario := promql.Scenario{
+		Name:           "fake-overview",
+		Range:          false,
+		InstantSummary: true,
+		Columns:        []string{"label", "value"},
+		SummaryColumns: []string{"label", "max", "avg", "p99", "last"},
+		Summary: map[string]promql.SummarySpec{
+			"regionservers_active": {Aggs: []string{"max", "last"}},
+		},
+		Queries: []promql.Query{{Label: "regionservers_active", Expr: "x"}},
+	}
+	results := []vmclient.Result{{Result: []vmclient.Sample{{
+		Metric: map[string]string{},
+		Values: [][]any{
+			{float64(1_700_000_000), "3"},
+			{float64(1_700_000_030), "3"},
+			{float64(1_700_000_060), "3"},
+		},
+	}}}}
+
+	env := buildEnvelope(scenario, []promql.Rendered{{Label: "regionservers_active", Expr: "x"}}, results, "summary")
+	require.Equal(t, []string{"label", "max", "avg", "p99", "last"}, env.Columns)
+	require.Len(t, env.Data, 1)
+	row := env.Data[0]
+	require.Equal(t, "regionservers_active", row["label"])
+	require.Equal(t, 3.0, row["max"])
+	require.Equal(t, 3.0, row["last"])
+	require.Contains(t, row, "avg")
+	require.Nil(t, row["avg"])
+	require.Contains(t, row, "p99")
+	require.Nil(t, row["p99"])
+}
+
+// When a query returns no series, the label-value summary row must still
+// carry every declared column with explicit nil, not an "empty except label"
+// row.
+func TestBuildEnvelope_LabelValueNoData_AggsAreNil(t *testing.T) {
+	scenario := promql.Scenario{
+		Name:           "fake-overview",
+		Range:          false,
+		InstantSummary: true,
+		Columns:        []string{"label", "value"},
+		SummaryColumns: []string{"label", "max", "avg", "last"},
+		Queries:        []promql.Query{{Label: "qps", Expr: "x"}},
+	}
+	results := []vmclient.Result{{Result: nil}}
+
+	env := buildEnvelope(scenario, []promql.Rendered{{Label: "qps", Expr: "x"}}, results, "summary")
+	require.Len(t, env.Data, 1)
+	row := env.Data[0]
+	require.Equal(t, "qps", row["label"])
+	require.Contains(t, row, "max")
+	require.Nil(t, row["max"])
+	require.Nil(t, row["avg"])
+	require.Nil(t, row["last"])
+}
+
+// Per-instance summary row: when every datapoint is NaN/Inf, agg fields
+// collapse to nil rather than the misleading 0.0 zero-value.
+func TestBuildEnvelope_PerInstanceAllNaN_AggsAreNil(t *testing.T) {
+	scenario := promql.Scenario{
+		Name:    "fake-range",
+		Range:   true,
+		Columns: []string{"instance", "qps"},
+		Queries: []promql.Query{{Label: "qps", Expr: "x"}},
+	}
+	results := []vmclient.Result{
+		{Result: []vmclient.Sample{sample("rs1", "NaN", "+Inf", "NaN")}},
+	}
+	env := buildEnvelope(scenario, []promql.Rendered{{Label: "qps", Expr: "x"}}, results, "summary")
+	require.Len(t, env.Data, 1)
+	row := env.Data[0]
+	require.Equal(t, "rs1", row["instance"])
+	require.Nil(t, row["qps_max"])
+	require.Nil(t, row["qps_avg"])
+	require.Nil(t, row["qps_last"])
+}
+
 func TestSinceOnInstantScenarioYieldsHint(t *testing.T) {
 	root := &cobra.Command{Use: "root"}
 	dummyCfg := func() (*config.Config, error) {

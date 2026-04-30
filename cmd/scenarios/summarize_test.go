@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/opay-bigdata/hbase-metrics-cli/internal/aggregate"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/promql"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/vmclient"
 )
@@ -80,4 +81,27 @@ func TestSummarizeByInstance_LabelValueMode(t *testing.T) {
 	require.Equal(t, 30.0, rows[0]["last"])
 	require.Equal(t, "regions_total", rows[1]["label"])
 	require.Equal(t, 100.0, rows[1]["max"])
+}
+
+func TestPickAgg_NoValidData_ReturnsNil(t *testing.T) {
+	empty := aggregate.Summary{}
+	require.Nil(t, pickAgg(empty, "max"))
+	require.Nil(t, pickAgg(empty, "avg"))
+	require.Nil(t, pickAgg(empty, "p99"))
+	require.Nil(t, pickAgg(empty, "last"))
+	require.Equal(t, 0, pickAgg(empty, "count"))
+
+	allInvalid := aggregate.Summary{Count: 5, NaNRatio: 1.0}
+	require.Nil(t, pickAgg(allInvalid, "max"))
+	require.Nil(t, pickAgg(allInvalid, "last"))
+	require.Equal(t, 5, pickAgg(allInvalid, "count"))
+	require.Equal(t, 1.0, pickAgg(allInvalid, "nan_ratio"))
+}
+
+func TestPickAgg_ValidData_ReturnsNumeric(t *testing.T) {
+	s := aggregate.Summary{Count: 3, Max: 30, Avg: 20, P99: 30, Last: 30}
+	require.Equal(t, 30.0, pickAgg(s, "max"))
+	require.Equal(t, 20.0, pickAgg(s, "avg"))
+	require.Equal(t, 30.0, pickAgg(s, "p99"))
+	require.Equal(t, 30.0, pickAgg(s, "last"))
 }

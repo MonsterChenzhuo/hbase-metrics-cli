@@ -134,6 +134,10 @@ Build an `output.Envelope` and call `output.Render(globals.Format, env, cmd.OutO
 
 The envelope always includes `mode` (one of `instant` | `summary` | `raw`). Per-instance summary rows are sorted by `instance` for deterministic output.
 
+**Columns contract (summary mode):** in `summary` mode, every row in `env.Data` is guaranteed to contain a key for every entry in `env.Columns` — `buildEnvelope` runs `fillMissingColumns` as a final pass and inserts explicit `nil` for any missing key. AI agents can rely on the column header as a stable schema. If you add a new summary path, either keep this invariant or extend `fillMissingColumns`.
+
+**No-data signaling:** `pickAgg` returns `nil` (JSON `null`) for every numeric aggregate when the underlying `aggregate.Summary` has no valid datapoints (`Count == 0` or `NaNRatio >= 1.0`). This distinguishes "the metric had no samples in the window" from "the metric's last value was 0" — critical for low-traffic clusters where `last=0` would otherwise be ambiguous. `count` and `nan_ratio` aggs always stay numeric (they describe coverage, not the metric).
+
 ### HTTP
 
 Always go through `vmclient.New(vmclient.Options{...}).Query{,Range}(ctx, ...)`. The client does HTTP→`CodedError` mapping (5xx → `CodeVMHTTP5XX`, 4xx → `CodeVMHTTP4XX`, transport → `CodeVMUnreachable`). Don't add a second HTTP client.
