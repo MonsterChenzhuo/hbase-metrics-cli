@@ -1,7 +1,17 @@
 name: blockcache-hitrate
 description: BlockCache hit ratio and size per RegionServer (with read volume context).
 range: false
+instant_summary: true
 columns: [instance, hit_ratio_pct, size_mb, evicted_qps, read_qps_recent]
+summary:
+  hit_ratio_pct:
+    aggs: [max, avg, p99, last]
+  size_mb:
+    aggs: [max, last]
+  evicted_qps:
+    aggs: [max, avg, last]
+  read_qps_recent:
+    aggs: [max, avg, last]
 queries:
   - label: hit_ratio_pct
     expr: |

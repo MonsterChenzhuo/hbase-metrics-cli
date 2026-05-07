@@ -1,20 +1,33 @@
 name: master-status
-description: HBase Master state — average load, RIT count, balancer status.
+description: HBase Master state — active/dead RS count, average load, RIT count, RIT oldest age.
 range: false
+instant_summary: true
 columns: [label, value]
+summary_columns: [label, max, avg, last]
+summary:
+  regionservers_active:
+    aggs: [max, avg, last]
+  regionservers_dead:
+    aggs: [max, avg, last]
+  average_load:
+    aggs: [max, avg, last]
+  regions_in_transition:
+    aggs: [max, avg, last]
+  rit_oldest_age_ms:
+    aggs: [max, avg, last]
 queries:
   - label: regionservers_active
     expr: |
-      hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="master", sub="Server"}
+      max(hadoop_hbase_numregionservers{cluster="{{.cluster}}", role="master", sub="Server"})
   - label: regionservers_dead
     expr: |
-      hadoop_hbase_numdeadregionservers{cluster="{{.cluster}}", role="master", sub="Server"}
+      max(hadoop_hbase_numdeadregionservers{cluster="{{.cluster}}", role="master", sub="Server"})
   - label: average_load
     expr: |
-      hadoop_hbase_averageload{cluster="{{.cluster}}", role="master", sub="Server"}
+      max(hadoop_hbase_averageload{cluster="{{.cluster}}", role="master", sub="Server"})
   - label: regions_in_transition
     expr: |
-      hadoop_hbase_ritcount{cluster="{{.cluster}}", role="master", sub="AssignmentManager"}
+      max(hadoop_hbase_ritcount{cluster="{{.cluster}}", role="master", sub="AssignmentManager"})
   - label: rit_oldest_age_ms
     expr: |
-      hadoop_hbase_ritoldestage{cluster="{{.cluster}}", role="master", sub="AssignmentManager"}
+      max(hadoop_hbase_ritoldestage{cluster="{{.cluster}}", role="master", sub="AssignmentManager"})

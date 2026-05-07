@@ -14,7 +14,10 @@ type Rendered struct {
 }
 
 func Render(s Scenario, vars Vars) ([]Rendered, error) {
-	merged := map[string]any{}
+	merged := map[string]any{
+		"mode":       "instant",
+		"is_summary": false,
+	}
 	for k, v := range s.Defaults {
 		merged[k] = v
 	}

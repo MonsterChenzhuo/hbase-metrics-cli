@@ -184,21 +184,30 @@ func TestBuildEnvelope_PerInstanceAllNaN_AggsAreNil(t *testing.T) {
 }
 
 func TestSinceOnInstantScenarioYieldsHint(t *testing.T) {
-	root := &cobra.Command{Use: "root"}
+	// Synthetic purely-instant scenario (no range, no instant_summary) to keep
+	// the FLAG_INVALID path covered even after the embedded scenarios all
+	// adopted instant_summary.
+	s := promql.Scenario{
+		Name:    "instant-only",
+		Range:   false,
+		Queries: []promql.Query{{Label: "x", Expr: `up{cluster="{{.cluster}}"}`}},
+		Columns: []string{"label", "value"},
+	}
 	dummyCfg := func() (*config.Config, error) {
 		return &config.Config{VMURL: "http://x", DefaultCluster: "c", Timeout: time.Second}, nil
 	}
-	require.NoError(t, Register(root,
-		dummyCfg,
+	cmd := buildCmd(s, dummyCfg,
 		func() string { return "json" },
 		func() bool { return true },
 		func() bool { return false },
-	))
+	)
+	root := &cobra.Command{Use: "root"}
+	root.AddCommand(cmd)
 
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetErr(&buf)
-	root.SetArgs([]string{"handler-queue", "--since", "1h"})
+	root.SetArgs([]string{"instant-only", "--since", "1h"})
 
 	err := root.ExecuteContext(context.Background())
 	require.Error(t, err)

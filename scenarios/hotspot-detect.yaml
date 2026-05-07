@@ -1,16 +1,30 @@
 name: hotspot-detect
 description: Top-K hot RegionServers by request QPS and active-handler ratio.
 range: false
+instant_summary: true
 flags:
   - name: top
     type: int
     default: 5
-    help: Top-K hottest RegionServers
+    help: Top-K hottest RegionServers (instant mode only — summary returns all RS so the caller can rank by qps_max)
 columns: [instance, qps, active_handlers]
+summary:
+  qps:
+    aggs: [max, avg, p99, last]
+  active_handlers:
+    aggs: [max, avg, last]
 queries:
   - label: qps
     expr: |
+      {{- if .is_summary }}
+      sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]), 0))
+      {{- else }}
       topk({{.top}}, sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{cluster="{{.cluster}}", role="regionserver", sub="Server"}[5m]), 0)))
+      {{- end }}
   - label: active_handlers
     expr: |
+      {{- if .is_summary }}
+      hadoop_hbase_numactivehandler{cluster="{{.cluster}}", role="regionserver", sub="IPC"}
+      {{- else }}
       topk({{.top}}, hadoop_hbase_numactivehandler{cluster="{{.cluster}}", role="regionserver", sub="IPC"})
+      {{- end }}

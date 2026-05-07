@@ -1,14 +1,25 @@
 package scenarios
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/aggregate"
+	"github.com/opay-bigdata/hbase-metrics-cli/internal/output"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/promql"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/vmclient"
 )
+
+func sortedKeys(row output.Row) []string {
+	out := make([]string, 0, len(row))
+	for k := range row {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
 
 func sample(instance string, vals ...string) vmclient.Sample {
 	out := make([][]any, len(vals))
@@ -104,4 +115,60 @@ func TestPickAgg_ValidData_ReturnsNumeric(t *testing.T) {
 	require.Equal(t, 20.0, pickAgg(s, "avg"))
 	require.Equal(t, 30.0, pickAgg(s, "p99"))
 	require.Equal(t, 30.0, pickAgg(s, "last"))
+}
+
+// TestEnvelopeSchemaInvariant_AllScenarios is the schema watchdog: for every
+// embedded scenario, in every mode, every row in env.Data must have exactly
+// the keys declared in env.Columns. This caught a master-status bug where an
+// agg ran for one query but was absent from summary_columns, leaking an extra
+// `avg` field that violated the documented Columns contract.
+func TestEnvelopeSchemaInvariant_AllScenarios(t *testing.T) {
+	all, err := promql.LoadEmbedded()
+	require.NoError(t, err)
+	require.NotEmpty(t, all)
+
+	for _, s := range all {
+		s := s
+		t.Run(s.Name, func(t *testing.T) {
+			vars := promql.Vars{
+				"cluster": "c", "role": "regionserver", "top": 5,
+				"since": "10m", "step": "30s",
+			}
+			for _, mode := range []string{"instant", "summary", "raw"} {
+				vars["mode"] = mode
+				vars["is_summary"] = mode != "instant"
+				rendered, err := promql.Render(s, vars)
+				require.NoError(t, err)
+
+				results := make([]vmclient.Result, len(rendered))
+				for i, r := range rendered {
+					results[i] = vmclient.Result{Result: []vmclient.Sample{
+						sample("rs-a:19110", "10", "20", "30"),
+						sample("rs-b:19110", "1", "2", "3"),
+					}}
+					_ = r
+				}
+
+				env := buildEnvelope(s, rendered, results, mode)
+				cols := map[string]struct{}{}
+				for _, c := range env.Columns {
+					cols[c] = struct{}{}
+				}
+				for i, row := range env.Data {
+					for k := range row {
+						_, ok := cols[k]
+						require.Truef(t, ok,
+							"scenario=%s mode=%s row[%d] has key %q not in columns %v",
+							s.Name, mode, i, k, env.Columns)
+					}
+					for c := range cols {
+						_, ok := row[c]
+						require.Truef(t, ok,
+							"scenario=%s mode=%s row[%d] missing column %q (have %v)",
+							s.Name, mode, i, c, sortedKeys(row))
+					}
+				}
+			}
+		})
+	}
 }

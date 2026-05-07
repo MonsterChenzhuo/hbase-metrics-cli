@@ -1,7 +1,15 @@
 name: jvm-memory
 description: JVM heap and non-heap usage per RegionServer.
 range: false
+instant_summary: true
 columns: [instance, heap_used_mb, heap_max_mb, heap_used_pct]
+summary:
+  heap_used_mb:
+    aggs: [max, avg, last]
+  heap_max_mb:
+    aggs: [max, last]
+  heap_used_pct:
+    aggs: [max, avg, p99, last]
 queries:
   - label: heap_used_mb
     expr: |

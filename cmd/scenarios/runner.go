@@ -103,20 +103,23 @@ func buildEnvelope(s promql.Scenario, rendered []promql.Rendered, results []vmcl
 			env.Data = mergeByInstance(rendered, results, false)
 		}
 	}
-	if mode == "summary" {
-		fillMissingColumns(&env)
-	}
+	fillMissingColumns(&env)
 	return env
 }
 
 // fillMissingColumns enforces the env.Columns schema on every row in env.Data:
-// any column missing from a row gets an explicit nil. Without this, JSON
-// consumers see a header that promises keys the row may not contain — most
-// visibly in label-value summary mode where summary_columns is hard-coded but
-// per-query summary.<label>.aggs may emit a subset.
+// any column missing from a row gets an explicit nil, and any key not present
+// in env.Columns is removed. Without this, JSON consumers see a header that
+// promises a schema the row may not match — most visibly in label-value
+// summary mode where summary_columns is hard-coded but per-query
+// summary.<label>.aggs may emit a different set.
 func fillMissingColumns(env *output.Envelope) {
 	if len(env.Columns) == 0 {
 		return
+	}
+	allowed := make(map[string]struct{}, len(env.Columns))
+	for _, col := range env.Columns {
+		allowed[col] = struct{}{}
 	}
 	for _, row := range env.Data {
 		for _, col := range env.Columns {
@@ -124,17 +127,27 @@ func fillMissingColumns(env *output.Envelope) {
 				row[col] = nil
 			}
 		}
+		for k := range row {
+			if _, ok := allowed[k]; !ok {
+				delete(row, k)
+			}
+		}
 	}
 }
 
 func Run(ctx context.Context, in Inputs) (output.Envelope, error) {
+	mode := pickMode(in.Scenario, in.HasSince, in.Raw)
+	isRange := mode == "summary" || mode == "raw"
+	if in.Vars == nil {
+		in.Vars = promql.Vars{}
+	}
+	in.Vars["mode"] = mode
+	in.Vars["is_summary"] = isRange
 	rendered, err := promql.Render(in.Scenario, in.Vars)
 	if err != nil {
 		return output.Envelope{}, cerrors.Errorf(cerrors.CodeFlagInvalid, "render scenario %s: %v", in.Scenario.Name, err)
 	}
 	cluster, _ := in.Vars["cluster"].(string)
-	mode := pickMode(in.Scenario, in.HasSince, in.Raw)
-	isRange := mode == "summary" || mode == "raw"
 
 	env := buildEnvelope(in.Scenario, rendered, nil, mode)
 	env.Cluster = cluster

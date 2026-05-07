@@ -1,7 +1,15 @@
 name: regionserver-list
 description: Per-RegionServer region count, request QPS, and heap usage.
 range: false
+instant_summary: true
 columns: [instance, regions_count, qps_total, heap_used_mb]
+summary:
+  regions_count:
+    aggs: [max, avg, last]
+  qps_total:
+    aggs: [max, avg, p99, last]
+  heap_used_mb:
+    aggs: [max, avg, p99, last]
 queries:
   - label: regions_count
     expr: |

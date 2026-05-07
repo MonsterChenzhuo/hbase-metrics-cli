@@ -1,7 +1,15 @@
 name: handler-queue
 description: IPC handler queue length and active handler count per RegionServer.
 range: false
+instant_summary: true
 columns: [instance, general_queue, priority_queue, active_handlers]
+summary:
+  general_queue:
+    aggs: [max, avg, last]
+  priority_queue:
+    aggs: [max, avg, last]
+  active_handlers:
+    aggs: [max, avg, last]
 queries:
   - label: general_queue
     expr: |

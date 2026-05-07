@@ -58,6 +58,19 @@ make release-snapshot  # goreleaser snapshot — 4 platform tarballs into dist/
 
 Before committing changes you MUST verify `make tidy && make lint && make unit-test` are green.
 
+## Maintaining docs after a fix
+
+Every behaviour-changing fix MUST update documentation in the same commit. This file (`CLAUDE.md`) and the agent skill (`.claude/skills/hbase-metrics/SKILL.md`) are the entry points future agents (and humans) read first — stale docs cause the same bug to be re-hit.
+
+After any of the following, update both files (and re-check `docs/superpowers/specs/*` if the contract changed):
+
+- Adding / removing / renaming a scenario, flag, or exit code
+- Changing a scenario's mode (`range` ↔ `hybrid` ↔ `instant`)
+- Changing the Envelope shape, summary aggregation defaults, or stderr error codes
+- Fixing an undocumented agent footgun (e.g. a flag that silently no-ops or hard-errors)
+
+Concretely: the SKILL.md scenario table has a `Mode` column — keep it in sync with each YAML's `range:` / `instant_summary:` flags. If you change a scenario's mode, the table is wrong until you edit it.
+
 ## Adding a new scenario
 
 Zero Go code changes. Drop a YAML into `scenarios/`, regenerate goldens, commit.
@@ -96,6 +109,27 @@ mode = raw      if --raw
        summary  if scenario.range || (scenario.instant_summary && --since)
        instant  otherwise
 ```
+
+**`instant_summary: true` is the default for per-RS gauge scenarios.** Without it, `--since` hard-errors `FLAG_INVALID` on the scenario, which forces agents to special-case the scenario list. If your new scenario produces a per-instance gauge / queue depth / hit ratio that an operator might want to look back over a window (and that's almost always), set `instant_summary: true` and provide a `summary:` block with the right aggregations. Reserve `range: true` for scenarios where instant has no useful meaning (rate / latency histograms).
+
+**`{{.mode}}` / `{{.is_summary}}` template vars** are auto-injected by `runner.Run` on every render. `mode` is `"instant" | "summary" | "raw"`; `is_summary` is `true` when mode is `summary` or `raw`. Use them when the same scenario needs structurally different PromQL between modes — the canonical example is `topk(K, ...)` filtering, which is correct in instant but corrupts per-instance time series in summary because each scrape reshuffles which instances are in the top-K. Pattern from `scenarios/hotspot-detect.yaml`:
+
+```yaml
+queries:
+  - label: qps
+    expr: |
+      {{- if .is_summary }}
+      sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{...}[5m]), 0))
+      {{- else }}
+      topk({{.top}}, sum by (instance) (clamp_min(rate(hadoop_hbase_totalrequestcount{...}[5m]), 0)))
+      {{- end }}
+```
+
+When neither mode nor `is_summary` is set (e.g. test render with `Render(s, vars)` directly), they default to `"instant"` / `false` — so scenarios that don't reference them keep working.
+
+**Schema invariant (Columns contract — both directions):** `fillMissingColumns` runs in every mode (`instant`, `summary`, `raw`) and enforces `set(row.keys) == set(env.Columns)` for every row in `env.Data`. Missing keys get `nil`; extra keys are deleted. The watchdog test `TestEnvelopeSchemaInvariant_AllScenarios` (in `cmd/scenarios/summarize_test.go`) loads every YAML and exercises this in all three modes against synthetic per-instance data — so schema drift between `summary_columns` / per-query `summary.<label>.aggs` will fail CI before it reaches an agent.
+
+**HA-safe master queries:** the master metric series exists on **every** master replica (active + standby). An unwrapped instant query returns multiple series and `aggregateLabelValue` only renders the first one — usually standby's `0`. Always wrap master-server / master-AssignmentManager queries with `max(...)` so the active master's value wins. `cluster-overview.yaml` and `master-status.yaml` follow this pattern.
 
 **Counter-reset convention:** every `rate()` expression wraps with `clamp_min(rate(...[5m]), 0)` and uses `[5m]` minimum. Use `max(...)` (not `count(...)`) for "active resource" gauges so a scrape miss doesn't drop the value.
 
@@ -182,6 +216,7 @@ intentionally want a multi-cluster view.
 - **Don't change exit codes.** They're part of the agent contract: `0` success or NoData warning · `1` internal · `2` user error · `3` VM failure.
 - **Don't gofmt-skip.** `make lint` enforces gofmt + goimports via golangci-lint v2's `formatters` block.
 - **Don't `--no-verify` a commit.** Hooks aren't currently configured but if they get added, fix the issue rather than skip.
+- **Don't ship a behaviour fix without updating CLAUDE.md and SKILL.md.** See "Maintaining docs after a fix" above. The two files are the agent contract; if they disagree with the code, the code is what runs but the next agent will read the doc first and waste an iteration.
 
 ## Useful local URLs / labels
 
@@ -204,4 +239,4 @@ The specs are authoritative when in doubt about behavior — read those before c
 
 ## Claude Code skill
 
-The `.claude/skills/hbase-metrics/SKILL.md` is the agent-facing entry point. If you change the scenario list, command names, exit codes, or Envelope schema, **update the skill in the same commit** so agents using it don't drift.
+The `.claude/skills/hbase-metrics/SKILL.md` is the agent-facing entry point. If you change the scenario list, command names, exit codes, Envelope schema, or any scenario's `Mode` (`range` / `hybrid` / `instant`), **update the skill in the same commit** so agents using it don't drift.
