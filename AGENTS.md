@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Project-specific instructions for Claude Code (and other AI agents) working in this repo.
+Project-specific instructions for Codex (and other AI agents) working in this repo.
 
 ## Project at a glance
 
@@ -60,7 +60,7 @@ Before committing changes you MUST verify `make tidy && make lint && make unit-t
 
 ## Maintaining docs after a fix
 
-Every behaviour-changing fix MUST update documentation in the same commit. This file (`CLAUDE.md`) and the agent skill (`.claude/skills/hbase-metrics/SKILL.md`) are the entry points future agents (and humans) read first — stale docs cause the same bug to be re-hit.
+Every behaviour-changing fix MUST update documentation in the same commit. This file (`AGENTS.md`) and the agent skill (`.Codex/skills/hbase-metrics/SKILL.md`) are the entry points future agents (and humans) read first — stale docs cause the same bug to be re-hit.
 
 After any of the following, update both files (and re-check `docs/superpowers/specs/*` if the contract changed):
 
@@ -220,7 +220,7 @@ intentionally want a multi-cluster view.
 - **Don't change exit codes.** They're part of the agent contract: `0` success or NoData warning · `1` internal · `2` user error · `3` VM failure.
 - **Don't gofmt-skip.** `make lint` enforces gofmt + goimports via golangci-lint v2's `formatters` block.
 - **Don't `--no-verify` a commit.** Hooks aren't currently configured but if they get added, fix the issue rather than skip.
-- **Don't ship a behaviour fix without updating CLAUDE.md and SKILL.md.** See "Maintaining docs after a fix" above. The two files are the agent contract; if they disagree with the code, the code is what runs but the next agent will read the doc first and waste an iteration.
+- **Don't ship a behaviour fix without updating AGENTS.md and SKILL.md.** See "Maintaining docs after a fix" above. The two files are the agent contract; if they disagree with the code, the code is what runs but the next agent will read the doc first and waste an iteration.
 
 ## Useful local URLs / labels
 
@@ -241,6 +241,6 @@ intentionally want a multi-cluster view.
 
 The specs are authoritative when in doubt about behavior — read those before changing exit codes, the Envelope schema, or the agent contract.
 
-## Claude Code skill
+## Codex skill
 
-The `.claude/skills/hbase-metrics/SKILL.md` is the agent-facing entry point. If you change the scenario list, command names, exit codes, Envelope schema, or any scenario's `Mode` (`range` / `hybrid` / `instant`), **update the skill in the same commit** so agents using it don't drift.
+The `.Codex/skills/hbase-metrics/SKILL.md` is the agent-facing entry point. If you change the scenario list, command names, exit codes, Envelope schema, or any scenario's `Mode` (`range` / `hybrid` / `instant`), **update the skill in the same commit** so agents using it don't drift.

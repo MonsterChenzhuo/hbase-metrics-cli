@@ -3,6 +3,7 @@ package scenarios
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -89,11 +90,12 @@ func buildEnvelope(s promql.Scenario, rendered []promql.Rendered, results []vmcl
 			env.Data = summarizeByInstance(s, rendered, results)
 		}
 	case "raw":
-		env.Columns = s.Columns
 		if isLabelValueMode(s.Columns) {
-			env.Data = aggregateLabelValue(rendered, results, true)
+			env.Columns = []string{"label", "timestamp", "time", "value"}
+			env.Data = flattenLabelValueRange(rendered, results)
 		} else {
-			env.Data = mergeByInstance(rendered, results, true)
+			env.Columns = rawInstanceColumns(s.Columns)
+			env.Data = flattenByInstanceTimestamp(rendered, results)
 		}
 	default: // instant
 		env.Columns = s.Columns
@@ -105,6 +107,17 @@ func buildEnvelope(s promql.Scenario, rendered []promql.Rendered, results []vmcl
 	}
 	fillMissingColumns(&env)
 	return env
+}
+
+func rawInstanceColumns(cols []string) []string {
+	out := []string{"instance", "timestamp", "time"}
+	for _, col := range cols {
+		if col == "instance" {
+			continue
+		}
+		out = append(out, col)
+	}
+	return out
 }
 
 // fillMissingColumns enforces the env.Columns schema on every row in env.Data:
@@ -235,6 +248,37 @@ func aggregateLabelValue(rendered []promql.Rendered, results []vmclient.Result, 
 	return rows
 }
 
+func flattenLabelValueRange(rendered []promql.Rendered, results []vmclient.Result) []output.Row {
+	rows := []output.Row{}
+	for i, res := range results {
+		for _, sample := range res.Result {
+			for _, value := range sample.Values {
+				ts, ok := sampleTimestamp(value)
+				if !ok {
+					continue
+				}
+				rows = append(rows, output.Row{
+					"label":     rendered[i].Label,
+					"timestamp": ts,
+					"time":      unixUTC(ts),
+					"value":     parseFloat(value),
+				})
+			}
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		li, _ := rows[i]["label"].(string)
+		lj, _ := rows[j]["label"].(string)
+		if li != lj {
+			return li < lj
+		}
+		ti, _ := rows[i]["timestamp"].(int64)
+		tj, _ := rows[j]["timestamp"].(int64)
+		return ti < tj
+	})
+	return rows
+}
+
 // mergeByInstance turns N parallel query results into one row per instance,
 // with the query Label as the column key.
 func mergeByInstance(rendered []promql.Rendered, results []vmclient.Result, isRange bool) []output.Row {
@@ -268,6 +312,72 @@ func mergeByInstance(rendered []promql.Rendered, results []vmclient.Result, isRa
 		return ai < aj
 	})
 	return out
+}
+
+func flattenByInstanceTimestamp(rendered []promql.Rendered, results []vmclient.Result) []output.Row {
+	rows := map[string]output.Row{}
+	for i, res := range results {
+		label := rendered[i].Label
+		for _, sample := range res.Result {
+			instance := sample.Metric["instance"]
+			if instance == "" {
+				instance = fmt.Sprintf("%s/%d", label, i)
+			}
+			for _, value := range sample.Values {
+				ts, ok := sampleTimestamp(value)
+				if !ok {
+					continue
+				}
+				key := fmt.Sprintf("%s/%d", instance, ts)
+				row, ok := rows[key]
+				if !ok {
+					row = output.Row{
+						"instance":  instance,
+						"timestamp": ts,
+						"time":      unixUTC(ts),
+					}
+					rows[key] = row
+				}
+				row[label] = parseFloat(value)
+			}
+		}
+	}
+	out := make([]output.Row, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		ii, _ := out[i]["instance"].(string)
+		ij, _ := out[j]["instance"].(string)
+		if ii != ij {
+			return ii < ij
+		}
+		ti, _ := out[i]["timestamp"].(int64)
+		tj, _ := out[j]["timestamp"].(int64)
+		return ti < tj
+	})
+	return out
+}
+
+func sampleTimestamp(v []any) (int64, bool) {
+	if len(v) == 0 {
+		return 0, false
+	}
+	switch ts := v[0].(type) {
+	case float64:
+		return int64(ts), true
+	case int64:
+		return ts, true
+	case json.Number:
+		i, err := ts.Int64()
+		return i, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func unixUTC(ts int64) string {
+	return time.Unix(ts, 0).UTC().Format(time.RFC3339)
 }
 
 func parseFloat(v []any) any {

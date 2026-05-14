@@ -14,71 +14,53 @@
   ],
   "columns": [
     "instance",
+    "timestamp",
+    "time",
     "gc_count_per_min",
     "gc_time_ms_per_min"
   ],
   "data": [
     {
-      "gc_count_per_min": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "gc_time_ms_per_min": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "instance": "rs-a:19110"
+      "gc_count_per_min": 10,
+      "gc_time_ms_per_min": 10,
+      "instance": "rs-a:19110",
+      "time": "2023-11-14T22:13:20Z",
+      "timestamp": 1700000000
     },
     {
-      "gc_count_per_min": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "gc_time_ms_per_min": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "instance": "rs-b:19110"
+      "gc_count_per_min": 20,
+      "gc_time_ms_per_min": 20,
+      "instance": "rs-a:19110",
+      "time": "2023-11-14T22:13:50Z",
+      "timestamp": 1700000030
+    },
+    {
+      "gc_count_per_min": 30,
+      "gc_time_ms_per_min": 30,
+      "instance": "rs-a:19110",
+      "time": "2023-11-14T22:14:20Z",
+      "timestamp": 1700000060
+    },
+    {
+      "gc_count_per_min": 10,
+      "gc_time_ms_per_min": 10,
+      "instance": "rs-b:19110",
+      "time": "2023-11-14T22:13:20Z",
+      "timestamp": 1700000000
+    },
+    {
+      "gc_count_per_min": 20,
+      "gc_time_ms_per_min": 20,
+      "instance": "rs-b:19110",
+      "time": "2023-11-14T22:13:50Z",
+      "timestamp": 1700000030
+    },
+    {
+      "gc_count_per_min": 30,
+      "gc_time_ms_per_min": 30,
+      "instance": "rs-b:19110",
+      "time": "2023-11-14T22:14:20Z",
+      "timestamp": 1700000060
     }
   ]
 }

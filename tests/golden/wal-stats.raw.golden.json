@@ -18,100 +18,60 @@
   ],
   "columns": [
     "instance",
+    "timestamp",
+    "time",
     "append_qps",
     "sync_p99_ms",
     "slow_appends_per_min"
   ],
   "data": [
     {
-      "append_qps": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
+      "append_qps": 10,
       "instance": "rs-a:19110",
-      "slow_appends_per_min": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "sync_p99_ms": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ]
+      "slow_appends_per_min": 10,
+      "sync_p99_ms": 10,
+      "time": "2023-11-14T22:13:20Z",
+      "timestamp": 1700000000
     },
     {
-      "append_qps": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
+      "append_qps": 20,
+      "instance": "rs-a:19110",
+      "slow_appends_per_min": 20,
+      "sync_p99_ms": 20,
+      "time": "2023-11-14T22:13:50Z",
+      "timestamp": 1700000030
+    },
+    {
+      "append_qps": 30,
+      "instance": "rs-a:19110",
+      "slow_appends_per_min": 30,
+      "sync_p99_ms": 30,
+      "time": "2023-11-14T22:14:20Z",
+      "timestamp": 1700000060
+    },
+    {
+      "append_qps": 10,
       "instance": "rs-b:19110",
-      "slow_appends_per_min": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "sync_p99_ms": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ]
+      "slow_appends_per_min": 10,
+      "sync_p99_ms": 10,
+      "time": "2023-11-14T22:13:20Z",
+      "timestamp": 1700000000
+    },
+    {
+      "append_qps": 20,
+      "instance": "rs-b:19110",
+      "slow_appends_per_min": 20,
+      "sync_p99_ms": 20,
+      "time": "2023-11-14T22:13:50Z",
+      "timestamp": 1700000030
+    },
+    {
+      "append_qps": 30,
+      "instance": "rs-b:19110",
+      "slow_appends_per_min": 30,
+      "sync_p99_ms": 30,
+      "time": "2023-11-14T22:14:20Z",
+      "timestamp": 1700000060
     }
   ]
 }

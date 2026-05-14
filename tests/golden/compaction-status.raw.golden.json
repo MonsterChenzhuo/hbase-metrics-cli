@@ -14,71 +14,53 @@
   ],
   "columns": [
     "instance",
+    "timestamp",
+    "time",
     "compaction_queue",
     "compacted_cells_qps"
   ],
   "data": [
     {
-      "compacted_cells_qps": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "compaction_queue": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "instance": "rs-a:19110"
+      "compacted_cells_qps": 10,
+      "compaction_queue": 10,
+      "instance": "rs-a:19110",
+      "time": "2023-11-14T22:13:20Z",
+      "timestamp": 1700000000
     },
     {
-      "compacted_cells_qps": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "compaction_queue": [
-        [
-          1700000000,
-          "10"
-        ],
-        [
-          1700000030,
-          "20"
-        ],
-        [
-          1700000060,
-          "30"
-        ]
-      ],
-      "instance": "rs-b:19110"
+      "compacted_cells_qps": 20,
+      "compaction_queue": 20,
+      "instance": "rs-a:19110",
+      "time": "2023-11-14T22:13:50Z",
+      "timestamp": 1700000030
+    },
+    {
+      "compacted_cells_qps": 30,
+      "compaction_queue": 30,
+      "instance": "rs-a:19110",
+      "time": "2023-11-14T22:14:20Z",
+      "timestamp": 1700000060
+    },
+    {
+      "compacted_cells_qps": 10,
+      "compaction_queue": 10,
+      "instance": "rs-b:19110",
+      "time": "2023-11-14T22:13:20Z",
+      "timestamp": 1700000000
+    },
+    {
+      "compacted_cells_qps": 20,
+      "compaction_queue": 20,
+      "instance": "rs-b:19110",
+      "time": "2023-11-14T22:13:50Z",
+      "timestamp": 1700000030
+    },
+    {
+      "compacted_cells_qps": 30,
+      "compaction_queue": 30,
+      "instance": "rs-b:19110",
+      "time": "2023-11-14T22:14:20Z",
+      "timestamp": 1700000060
     }
   ]
 }

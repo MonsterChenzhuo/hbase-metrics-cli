@@ -100,6 +100,64 @@ func TestRun_RangeSummaryEmitsModeAndColumns(t *testing.T) {
 	require.Equal(t, 30.0, env.Data[0]["qps_max"])
 }
 
+func TestBuildEnvelope_RawRangeFlattensInstanceSamples(t *testing.T) {
+	scenario := promql.Scenario{
+		Name:    "fake-range",
+		Range:   true,
+		Columns: []string{"instance", "qps", "latency"},
+		Queries: []promql.Query{
+			{Label: "qps", Expr: "x"},
+			{Label: "latency", Expr: "y"},
+		},
+	}
+	results := []vmclient.Result{
+		{Result: []vmclient.Sample{sample("rs1", "10", "20")}},
+		{Result: []vmclient.Sample{sample("rs1", "100", "200")}},
+	}
+
+	env := buildEnvelope(scenario, []promql.Rendered{
+		{Label: "qps", Expr: "x"},
+		{Label: "latency", Expr: "y"},
+	}, results, "raw")
+
+	require.Equal(t, []string{"instance", "timestamp", "time", "qps", "latency"}, env.Columns)
+	require.Len(t, env.Data, 2)
+	require.Equal(t, "rs1", env.Data[0]["instance"])
+	require.Equal(t, int64(1_700_000_000), env.Data[0]["timestamp"])
+	require.Equal(t, "2023-11-14T22:13:20Z", env.Data[0]["time"])
+	require.Equal(t, 10.0, env.Data[0]["qps"])
+	require.Equal(t, 100.0, env.Data[0]["latency"])
+	require.Equal(t, 20.0, env.Data[1]["qps"])
+	require.Equal(t, 200.0, env.Data[1]["latency"])
+}
+
+func TestBuildEnvelope_RawRangeFlattensLabelValueSamples(t *testing.T) {
+	scenario := promql.Scenario{
+		Name:    "fake-overview",
+		Range:   true,
+		Columns: []string{"label", "value"},
+		Queries: []promql.Query{{Label: "qps_total", Expr: "x"}},
+	}
+	results := []vmclient.Result{
+		{Result: []vmclient.Sample{{
+			Metric: map[string]string{},
+			Values: [][]any{
+				{float64(1_700_000_000), "10"},
+				{float64(1_700_000_030), "20"},
+			},
+		}}},
+	}
+
+	env := buildEnvelope(scenario, []promql.Rendered{{Label: "qps_total", Expr: "x"}}, results, "raw")
+
+	require.Equal(t, []string{"label", "timestamp", "time", "value"}, env.Columns)
+	require.Len(t, env.Data, 2)
+	require.Equal(t, "qps_total", env.Data[0]["label"])
+	require.Equal(t, int64(1_700_000_000), env.Data[0]["timestamp"])
+	require.Equal(t, "2023-11-14T22:13:20Z", env.Data[0]["time"])
+	require.Equal(t, 10.0, env.Data[0]["value"])
+}
+
 // Cluster-overview-style scenario: explicit summary_columns with [max, avg,
 // p99, last] but per-query aggs subset [max, last]. Every row must contain
 // every declared column; absent aggs are explicit nil so the JSON shape stays
