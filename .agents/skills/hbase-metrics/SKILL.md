@@ -13,14 +13,14 @@ description: Use when diagnosing HBase cluster health/performance — RPC latenc
 1. `hbase-metrics-cli config show` — confirm VM URL and default cluster.
 2. If `vm_url` source is `default`, prompt the user to run `hbase-metrics-cli config init` (or set `HBASE_VM_URL`).
 
-## Twelve scenarios
+## Thirteen scenarios
 
 The **Mode** column tells you whether `--since` is accepted:
 
 - `range` — must use `--since` (defaults if omitted). Returns `mode: summary` or `raw`.
 - `hybrid` — instant by default; pass `--since` to get a windowed `summary` over that period.
 
-All 12 embedded scenarios are `range` or `hybrid` — every one accepts `--since`. (A purely-instant scenario, where `--since` is rejected with `FLAG_INVALID`, is still possible in the schema but no longer present in the bundled set.)
+All 13 embedded scenarios are `range` or `hybrid` — every one accepts `--since`. (A purely-instant scenario, where `--since` is rejected with `FLAG_INVALID`, is still possible in the schema but no longer present in the bundled set.)
 
 | Scenario | Mode | When to use | Example |
 |---|---|---|---|
@@ -36,6 +36,7 @@ All 12 embedded scenarios are `range` or `hybrid` — every one accepts `--since
 | `blockcache-hitrate` | hybrid | Reads slow / cache miss | `hbase-metrics-cli blockcache-hitrate --since 24h` |
 | `wal-stats` | range | Writes slow | `hbase-metrics-cli wal-stats --since 30m` |
 | `master-status` | hybrid | Master / RIT issues | `hbase-metrics-cli master-status` |
+| `storage-usage` | hybrid | StoreFile / MemStore bytes per RS | `hbase-metrics-cli storage-usage --format table` |
 
 ## Common flags
 `--cluster X` `--since 5m|1h|24h` (range / hybrid only) `--step auto|30s|...` `--raw` `--top N` `--format json|table|markdown` (default `json`) `--dry-run`
@@ -58,6 +59,18 @@ Pass `--raw` when you need exact datapoints around an alarm minute. Raw mode is 
 ## HostName alarms
 Cloud alarms may report `HostName=node-...`, but HBase metric rows usually expose only `instance` (`IP:port`) plus labels such as `role`, `service`, `cluster`, and `sub`. Do not guess the HostName-to-IP mapping from row order. First run `labels <metric>` or `label-check <metric> hostname`; if hostname is missing, map it through Manager/CMDB/inventory, then inspect the matching `instance`.
 
+## Storage usage workflow
+Use this when the user asks who is using HBase/HDFS space, table size, namespace size, StoreFile size, or "storage占用".
+
+1. Start with metrics if the question is cluster/RegionServer level:
+   `hbase-metrics-cli storage-usage --format table`
+2. If the user asks for table or namespace size, first check whether the exporter has table/namespace labels:
+   `hbase-metrics-cli labels hadoop_hbase_storefilesize --format json`
+3. If `table` / `namespace` labels are absent, say metrics cannot answer table-level size from VM and switch to HDFS directory accounting:
+   `hdfs dfs -du -s -h /hbase/data/<namespace>` and `hdfs dfs -du -s -h '/hbase/data/<namespace>/*'`
+4. When unsure about metric names, use the agent-friendly discovery command before raw PromQL:
+   `hbase-metrics-cli metrics size --format table`
+
 ## Diagnostic playbook — "HBase is slow"
 Run in this order rather than going straight to one metric; later steps interpret earlier ones.
 
@@ -65,15 +78,16 @@ Run in this order rather than going straight to one metric; later steps interpre
 2. `rpc-latency --since 24h` + `handler-queue --since 1h` — service-side bottlenecks
 3. `hotspot-detect --since 1h` — single-RS hot spot driving the symptom
 4. `gc-pressure --since 24h` + `jvm-memory --since 24h` — JVM dragging the RS
-5. `compaction-status --since 24h` + `blockcache-hitrate --since 24h` — storage layer pressure
+5. `compaction-status --since 24h` + `blockcache-hitrate --since 24h` + `storage-usage --since 24h` — storage layer pressure
 6. Drill in via `queries[].expr` (rerun with adjusted PromQL through `hbase-metrics-cli query '...'`)
 
 For a 24h health check, batch all of the above with `--since 24h`; all bundled scenarios currently accept `--since`.
 
 ## Escape hatch
-For any case the 12 scenarios don't cover:
+For any case the 13 scenarios don't cover, first discover metric names with `metrics [contains]`, then query raw PromQL:
 
 ```bash
+hbase-metrics-cli metrics request --format table
 hbase-metrics-cli query 'sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline"}[5m]))'
 ```
 

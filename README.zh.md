@@ -2,11 +2,11 @@
 
 [中文版](./README.zh.md) | [English](./README.md)
 
-面向 **Claude Code** 等 AI Agent 的 HBase 监控诊断 CLI（Go 实现）—— 通过 VictoriaMetrics 查询 12 个预定义场景，默认输出结构化 JSON，方便 Agent 解析；人也可以 `--format table|markdown`。
+面向 **Claude Code** 等 AI Agent 的 HBase 监控诊断 CLI（Go 实现）—— 通过 VictoriaMetrics 查询 13 个预定义场景，默认输出结构化 JSON，方便 Agent 解析；人也可以 `--format table|markdown`。
 
 ## 为什么
 
-- **面向 Agent** —— 12 个扁平命令 1:1 对应 HBase 常见诊断问题；JSON envelope 同时回吐渲染后的 PromQL，方便 Agent 钻取。
+- **面向 Agent** —— 扁平场景命令 1:1 对应 HBase 常见诊断问题；JSON envelope 同时回吐渲染后的 PromQL，方便 Agent 钻取。
 - **单二进制** —— 不依赖 Node / Python；`go install` 或下载 release。
 - **场景即 YAML** —— PromQL 模板放在 `scenarios/*.yaml`，可 fork 改写。
 
@@ -76,7 +76,7 @@ ln -sf "$(pwd)/.claude/skills/hbase-metrics" ~/.claude/skills/hbase-metrics
 hbase-metrics-cli cluster-overview --format json
 ```
 
-## 12 个场景
+## 13 个场景命令与辅助命令
 
 | 命令 | 适用情境 |
 |---|---|
@@ -92,6 +92,8 @@ hbase-metrics-cli cluster-overview --format json
 | `blockcache-hitrate` | BlockCache 命中率 / 大小 |
 | `wal-stats` | WAL 慢 append / sync P99 |
 | `master-status` | Master 状态、RIT、平均负载 |
+| `storage-usage` | 各 RegionServer 的 StoreFile / MemStore 占用 |
+| `metrics [contains]` | 写原始 PromQL 前先发现可用指标名 |
 | `query '<promql>'` | 兜底原始 PromQL |
 
 ## 通用参数
@@ -104,7 +106,7 @@ hbase-metrics-cli cluster-overview --format json
 | `--timeout` | `10s` | HTTP 超时 |
 | `--format` | `json` | `json` / `table` / `markdown` |
 | `--dry-run` | `false` | 仅打印渲染后的 PromQL，不发请求 |
-| `--since` | 未设 | 时间窗口（如 `30m` / `2h` / `24h`）。range 场景始终生效；instant 场景仅当声明 `instant_summary: true` 时生效（目前为 `cluster-overview`）。 |
+| `--since` | 未设 | 时间窗口（如 `30m` / `2h` / `24h`）。range 场景始终生效；hybrid 场景声明 `instant_summary: true` 时生效。 |
 | `--step` | `auto` | range 查询步长。`auto` 按窗口大小自动选取 30s / 1m / 2m / 5m / 10m。可显式覆盖。 |
 | `--raw` | `false` | range 场景配合 `--since` 时返回原始数据点矩阵，跳过聚合摘要。 |
 
@@ -161,7 +163,7 @@ timeout: 10s
 
 ```bash
 make unit-test     # go test -race ./...
-make e2e-dry       # 12 个场景 dry-run e2e
+make e2e-dry       # 所有场景 dry-run e2e
 make lint          # vet + gofmt + golangci-lint
 make build         # 产出 ./hbase-metrics-cli
 ```

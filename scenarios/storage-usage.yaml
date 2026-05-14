@@ -1,0 +1,17 @@
+name: storage-usage
+description: HBase StoreFile and MemStore size per RegionServer.
+range: false
+instant_summary: true
+columns: [instance, storefile_gib, memstore_gib]
+summary:
+  storefile_gib:
+    aggs: [max, avg, last]
+  memstore_gib:
+    aggs: [max, avg, last]
+queries:
+  - label: storefile_gib
+    expr: |
+      sum by (instance) (hadoop_hbase_storefilesize{cluster="{{.cluster}}", role="regionserver", sub="Server"}) / 1024 / 1024 / 1024
+  - label: memstore_gib
+    expr: |
+      sum by (instance) (hadoop_hbase_memstoresize{cluster="{{.cluster}}", role="regionserver", sub="Server"}) / 1024 / 1024 / 1024

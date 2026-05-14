@@ -9,7 +9,7 @@ Project-specific instructions for Claude Code (and other AI agents) working in t
 - **Module:** `github.com/opay-bigdata/hbase-metrics-cli`
 - **Go:** 1.23+ (developed against go1.26.2)
 - **Entry point:** `main.go` → `cmd.Execute()`
-- **12 flat top-level scenario commands** are registered automatically by walking the embedded `scenarios/*.yaml`.
+- **13 flat top-level scenario commands** are registered automatically by walking the embedded `scenarios/*.yaml`.
 
 ## Architecture (1-minute tour)
 
@@ -36,8 +36,8 @@ internal/
   ├─ stepauto/  auto-step resolver: 30m→30s, 2h→1m, 12h→2m, 24h→5m, >24h→10m
   └─ vmclient/  VM /api/v1/query{,_range} client with HTTP→error mapping
 
-scenarios/        12 *.yaml + embed.go (//go:embed all:*.yaml)
-tests/golden/     12 PromQL goldens + 10 envelope JSON goldens (summary/raw shape locks) + golden_test.go (-update)
+scenarios/        13 *.yaml + embed.go (//go:embed all:*.yaml)
+tests/golden/     PromQL goldens + envelope JSON goldens (summary/raw shape locks) + golden_test.go (-update)
 tests/e2e/        dryrun_test.go behind //go:build e2e (incl. hybrid cluster-overview check)
 ```
 

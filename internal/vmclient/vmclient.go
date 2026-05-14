@@ -120,6 +120,32 @@ func (c *Client) Series(ctx context.Context, matchExpr string, since time.Durati
 	return out, nil
 }
 
+// MetricNames queries /api/v1/label/__name__/values and returns matching metric
+// names. matchExpr is optional; when provided it should be a Prometheus selector
+// such as `{__name__=~"hadoop_hbase_.*",cluster="x"}`.
+func (c *Client) MetricNames(ctx context.Context, matchExpr string) ([]string, error) {
+	q := url.Values{}
+	if matchExpr != "" {
+		q.Set("match[]", matchExpr)
+	}
+	body, err := c.doRaw(ctx, "/api/v1/label/__name__/values", q)
+	if err != nil {
+		return nil, err
+	}
+	var ar apiResponse
+	if err := json.Unmarshal(body, &ar); err != nil {
+		return nil, cerrors.Errorf(cerrors.CodeVMHTTP5XX, "decode label values response: %v", err)
+	}
+	if ar.Status != "success" {
+		return nil, cerrors.Errorf(cerrors.CodeVMHTTP4XX, "%s: %s", ar.ErrorType, ar.Error)
+	}
+	var out []string
+	if err := json.Unmarshal(ar.Data, &out); err != nil {
+		return nil, cerrors.Errorf(cerrors.CodeVMHTTP5XX, "decode metric names data: %v", err)
+	}
+	return out, nil
+}
+
 func (c *Client) do(ctx context.Context, path string, q url.Values) (*Result, error) {
 	body, err := c.doRaw(ctx, path, q)
 	if err != nil {

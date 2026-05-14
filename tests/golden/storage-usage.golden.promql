@@ -1,0 +1,6 @@
+# storefile_gib
+sum by (instance) (hadoop_hbase_storefilesize{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}) / 1024 / 1024 / 1024
+
+# memstore_gib
+sum by (instance) (hadoop_hbase_memstoresize{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}) / 1024 / 1024 / 1024
+

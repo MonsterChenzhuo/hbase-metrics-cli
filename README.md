@@ -2,11 +2,11 @@
 
 [中文版](./README.zh.md) | [English](./README.md)
 
-A Go CLI for diagnosing HBase clusters via VictoriaMetrics — built for **Claude Code** and other AI agents. Twelve predefined scenarios output structured JSON; humans can also use `--format table|markdown`.
+A Go CLI for diagnosing HBase clusters via VictoriaMetrics — built for **Claude Code** and other AI agents. Thirteen predefined scenarios output structured JSON; humans can also use `--format table|markdown`.
 
 ## Why
 
-- **Agent-Native** — flat 12 commands map 1:1 to common HBase diagnostic questions; output JSON envelope includes the rendered PromQL so the agent can drill in.
+- **Agent-Native** — flat scenario commands map 1:1 to common HBase diagnostic questions; output JSON envelope includes the rendered PromQL so the agent can drill in.
 - **Single binary** — no Node, no Python; `go install` or download a release.
 - **YAML scenarios** — PromQL templates live in `scenarios/*.yaml`, easy to fork and adapt.
 
@@ -76,7 +76,7 @@ ln -sf "$(pwd)/.claude/skills/hbase-metrics" ~/.claude/skills/hbase-metrics
 hbase-metrics-cli cluster-overview --format json
 ```
 
-## Scenarios (12)
+## Scenario Commands (13) and Helpers
 
 | Command | Use when |
 |---|---|
@@ -92,6 +92,8 @@ hbase-metrics-cli cluster-overview --format json
 | `blockcache-hitrate` | "BlockCache effective?" |
 | `wal-stats` | "WAL slow appends / sync latency?" |
 | `master-status` | "Master state, RIT count, average load?" |
+| `storage-usage` | "How much StoreFile / MemStore data does each RS hold?" |
+| `metrics [contains]` | Discover available metric names before writing raw PromQL |
 | `query '<promql>'` | Escape hatch for raw PromQL |
 
 ## Common Flags
@@ -104,7 +106,7 @@ hbase-metrics-cli cluster-overview --format json
 | `--timeout` | `10s` | HTTP timeout |
 | `--format` | `json` | `json` / `table` / `markdown` |
 | `--dry-run` | `false` | Print rendered PromQL, skip HTTP |
-| `--since` | unset | Time window (e.g. `30m`, `2h`, `24h`). Range scenarios always use it; instant scenarios use it only if they declare `instant_summary: true` (currently `cluster-overview`). |
+| `--since` | unset | Time window (e.g. `30m`, `2h`, `24h`). Range scenarios always use it; hybrid scenarios use it when they declare `instant_summary: true`. |
 | `--step` | `auto` | PromQL step for range queries. `auto` resolves to 30s / 1m / 2m / 5m / 10m by window size. Use `30s` etc. to override. |
 | `--raw` | `false` | For range scenarios under `--since`, return the raw datapoint matrix instead of the per-instance summary. |
 
@@ -161,7 +163,7 @@ Resolution order (highest wins): `flag` > `env` > `config.yaml` > built-in defau
 
 ```bash
 make unit-test     # go test -race ./...
-make e2e-dry       # all 12 scenarios in --dry-run mode
+make e2e-dry       # all scenarios in --dry-run mode
 make lint          # vet + gofmt + golangci-lint
 make build         # produce ./hbase-metrics-cli
 ```

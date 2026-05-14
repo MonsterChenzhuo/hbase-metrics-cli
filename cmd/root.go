@@ -94,6 +94,7 @@ func register(root *cobra.Command) {
 		os.Exit(cerrors.ExitInternal)
 	}
 	root.AddCommand(newQueryCmd())
+	root.AddCommand(newMetricsCmd())
 	root.AddCommand(newLabelsCmd())
 	root.AddCommand(newLabelCheckCmd())
 	root.AddCommand(configcmd.New())
