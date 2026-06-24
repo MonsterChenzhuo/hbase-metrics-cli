@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +21,19 @@ import (
 func queryHasClusterFilter(expr string) bool {
 	return strings.Contains(expr, "cluster=") || strings.Contains(expr, "cluster!=") ||
 		strings.Contains(expr, "cluster=~") || strings.Contains(expr, "cluster!~")
+}
+
+// queryColumns builds the column header for the query envelope: the fixed
+// instance/value pair followed by every other label seen across the result,
+// sorted alphabetically for deterministic table/markdown output. Without this
+// the table and markdown renderers would drop labels like `cluster`.
+func queryColumns(labelSet map[string]struct{}) []string {
+	extra := make([]string, 0, len(labelSet))
+	for k := range labelSet {
+		extra = append(extra, k)
+	}
+	sort.Strings(extra)
+	return append([]string{"instance", "value"}, extra...)
 }
 
 func newQueryCmd() *cobra.Command {
@@ -55,6 +69,11 @@ func newQueryCmd() *cobra.Command {
 				Queries:  []output.Query{{Label: "raw", Expr: args[0]}},
 				Data:     []output.Row{},
 			}
+			// Collect every label the result carries so table/markdown
+			// rendering doesn't silently drop columns (e.g. `cluster`).
+			// JSON already round-trips the full Row map, but the table
+			// and markdown renderers only emit keys listed in Columns.
+			labelSet := map[string]struct{}{}
 			for _, s := range res.Result {
 				row := output.Row{"instance": s.Metric["instance"]}
 				if len(s.Value) >= 2 {
@@ -63,13 +82,24 @@ func newQueryCmd() *cobra.Command {
 				for k, v := range s.Metric {
 					if k != "instance" {
 						row[k] = v
+						labelSet[k] = struct{}{}
 					}
 				}
 				env.Data = append(env.Data, row)
 			}
-			env.Columns = []string{"instance", "value"}
 			if len(env.Data) == 0 {
 				return cerrors.WithHint(cerrors.Errorf(cerrors.CodeNoData, "query returned no data"), "verify the PromQL expression and label values")
+			}
+			// Column order: instance, value, then remaining labels alphabetically
+			// for deterministic output. Every row is back-filled below so the
+			// header is a stable schema even when a series lacks a label.
+			env.Columns = queryColumns(labelSet)
+			for _, row := range env.Data {
+				for _, c := range env.Columns {
+					if _, ok := row[c]; !ok {
+						row[c] = nil
+					}
+				}
 			}
 			return output.Render(globals.Format, env, cmd.OutOrStdout())
 		},

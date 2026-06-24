@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes — Agent-facing footguns
+- **`--version` flag on the root command.** Previously only the `version` subcommand printed build info; `hbase-metrics-cli --version` hard-errored with `unknown flag: --version`. The root command now carries a `Version` and prints the exact same string as the `version` subcommand (`versionString()` is the single source of truth).
+- **`query --format table|markdown` no longer drops label columns.** The `query` envelope hard-coded `columns: [instance, value]`, so any extra label on the result (e.g. `cluster`) round-tripped in JSON but vanished from table/markdown rendering — making `query 'count by (cluster) (...)'` look like rows with no cluster. Columns are now computed from the labels actually present (`instance`, `value`, then remaining labels alphabetically), and every row is back-filled to keep the columns contract.
+
 ### Added — Multi-env config profiles
 - **`envs:` map in `config.yaml`** lets one binary point at multiple HBase clusters (NG / ID / staging) without re-editing the file. `active_env:` picks the default; `--env <name>` flag and `HBASE_ENV` env var override at runtime. Profile-name precedence: `--env` > `HBASE_ENV` > `active_env`.
 - **Layered overlay**: profile fields overlay the flat top-level config (so the existing flat shape stays as fallback). Field-value precedence: default → file flat → env profile overlay → `HBASE_*` env vars → `--vm-url` etc. flags.

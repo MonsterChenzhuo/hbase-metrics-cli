@@ -16,8 +16,8 @@ Project-specific instructions for Claude Code (and other AI agents) working in t
 ```
 main.go
   └─ cmd/root.go                 cobra root, global flags, LoadEffectiveConfig()
-       ├─ cmd/version.go         version subcommand
-       ├─ cmd/query.go           raw PromQL escape hatch (warns when no cluster filter)
+       ├─ cmd/version.go         version subcommand + root --version flag (shared versionString())
+       ├─ cmd/query.go           raw PromQL escape hatch (warns when no cluster filter; columns derived from result labels)
        ├─ cmd/clusters.go        list cluster= label values served by the VM endpoint
        ├─ cmd/labels.go          label-key discovery for a metric
        ├─ cmd/labelcheck.go      verify a label is actually emitted on a metric

@@ -39,9 +39,13 @@ func newRootCmd() *cobra.Command {
 		Long: `hbase-metrics-cli runs predefined diagnostic scenarios against a
 VictoriaMetrics endpoint and emits structured JSON / table / markdown so
 Claude Code (and other AI agents) can analyze HBase health.`,
+		Version:       versionString(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	// Keep `--version` output identical to the `version` subcommand so agents
+	// can use either spelling and parse the same string.
+	root.SetVersionTemplate("{{.Version}}\n")
 	root.PersistentFlags().StringVar(&globals.VMURL, "vm-url", "", "VictoriaMetrics base URL (overrides config / HBASE_VM_URL)")
 	root.PersistentFlags().StringVar(&globals.Cluster, "cluster", "", "Cluster label value (overrides default_cluster)")
 	root.PersistentFlags().StringVar(&globals.Env, "env", "", "Config profile name from envs: map (overrides HBASE_ENV / active_env)")
