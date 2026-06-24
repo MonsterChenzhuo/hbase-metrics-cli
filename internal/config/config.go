@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -24,10 +26,11 @@ const (
 type Source string
 
 const (
-	SourceDefault Source = "default"
-	SourceFile    Source = "file"
-	SourceEnv     Source = "env"
-	SourceFlag    Source = "flag"
+	SourceDefault    Source = "default"
+	SourceFile       Source = "file"
+	SourceEnvProfile Source = "env_profile"
+	SourceEnv        Source = "env"
+	SourceFlag       Source = "flag"
 )
 
 type BasicAuth struct {
@@ -42,11 +45,30 @@ type Sources struct {
 	Timeout        Source `yaml:"-"`
 }
 
+// EnvConfig is a named profile holding the per-environment overrides applied
+// on top of the flat top-level defaults. Empty fields are ignored so the
+// flat config still acts as fallback.
+type EnvConfig struct {
+	VMURL          string        `yaml:"vm_url,omitempty"`
+	DefaultCluster string        `yaml:"default_cluster,omitempty"`
+	BasicAuth      BasicAuth     `yaml:"basic_auth,omitempty"`
+	Timeout        time.Duration `yaml:"timeout,omitempty"`
+}
+
 type Config struct {
 	VMURL          string        `yaml:"vm_url"`
 	DefaultCluster string        `yaml:"default_cluster"`
 	BasicAuth      BasicAuth     `yaml:"basic_auth"`
 	Timeout        time.Duration `yaml:"timeout"`
+
+	// ActiveEnv names the default profile in Envs. May be overridden at
+	// runtime by --env / HBASE_ENV.
+	ActiveEnv string               `yaml:"active_env,omitempty"`
+	Envs      map[string]EnvConfig `yaml:"envs,omitempty"`
+
+	// SelectedEnv records the profile name actually applied this run; "" when
+	// no profile was selected. Not persisted to YAML.
+	SelectedEnv string `yaml:"-"`
 
 	Source Sources `yaml:"-"`
 }
@@ -125,6 +147,12 @@ func Load() (*Config, error) {
 		cfg.Timeout = fileCfg.Timeout
 		cfg.Source.Timeout = SourceFile
 	}
+	if fileCfg.ActiveEnv != "" {
+		cfg.ActiveEnv = fileCfg.ActiveEnv
+	}
+	if len(fileCfg.Envs) > 0 {
+		cfg.Envs = fileCfg.Envs
+	}
 	return cfg, nil
 }
 
@@ -151,6 +179,60 @@ func ApplyEnv(cfg *Config) {
 			cfg.Source.Timeout = SourceEnv
 		}
 	}
+}
+
+// ApplyEnvProfile overlays the named env profile on top of the current
+// effective config. Empty profile fields are ignored so flat defaults survive.
+// Sets cfg.SelectedEnv on success. Returns CONFIG_INVALID when name is set
+// but missing from cfg.Envs.
+func ApplyEnvProfile(cfg *Config, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	env, ok := cfg.Envs[name]
+	if !ok {
+		hint := "no envs configured; add an envs: map to config.yaml"
+		if names := EnvNames(cfg); len(names) > 0 {
+			hint = fmt.Sprintf("known envs: %s", strings.Join(names, ", "))
+		}
+		return cerrors.WithHint(
+			cerrors.Errorf(cerrors.CodeConfigInvalid, "env %q not found in envs: map", name),
+			hint,
+		)
+	}
+	if env.VMURL != "" {
+		cfg.VMURL = env.VMURL
+		cfg.Source.VMURL = SourceEnvProfile
+	}
+	if env.DefaultCluster != "" {
+		cfg.DefaultCluster = env.DefaultCluster
+		cfg.Source.DefaultCluster = SourceEnvProfile
+	}
+	if env.BasicAuth.Username != "" || env.BasicAuth.Password != "" {
+		cfg.BasicAuth = env.BasicAuth
+		cfg.Source.BasicAuth = SourceEnvProfile
+	}
+	if env.Timeout > 0 {
+		cfg.Timeout = env.Timeout
+		cfg.Source.Timeout = SourceEnvProfile
+	}
+	cfg.SelectedEnv = name
+	return nil
+}
+
+// EnvNames returns the env profile names sorted alphabetically. Useful for
+// stable hint / `config show` output.
+func EnvNames(cfg *Config) []string {
+	if len(cfg.Envs) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(cfg.Envs))
+	for n := range cfg.Envs {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func ApplyFlags(cfg *Config, f FlagOverrides) {

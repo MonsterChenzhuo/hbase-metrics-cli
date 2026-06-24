@@ -18,9 +18,10 @@ main.go
   └─ cmd/root.go                 cobra root, global flags, LoadEffectiveConfig()
        ├─ cmd/version.go         version subcommand
        ├─ cmd/query.go           raw PromQL escape hatch (warns when no cluster filter)
+       ├─ cmd/clusters.go        list cluster= label values served by the VM endpoint
        ├─ cmd/labels.go          label-key discovery for a metric
        ├─ cmd/labelcheck.go      verify a label is actually emitted on a metric
-       ├─ cmd/configcmd/         config init / config show
+       ├─ cmd/configcmd/         config init / config show (show goes through LoadEffectiveConfig so --env / HBASE_ENV / --vm-url are honored)
        └─ cmd/scenarios/         auto-registers one cobra cmd per YAML
             ├─ register.go       walks promql.LoadEmbedded(), wires flags (incl. --since/--step/--raw)
             ├─ runner.go         pickMode → render → errgroup parallel queries (limit 4) → merge/summarize → output
@@ -188,6 +189,46 @@ For schema discovery (label keys / values), use `vmclient.Series(ctx, selector, 
 
 Parallel queries inside a scenario use `errgroup.WithContext` with `SetLimit(4)`. If you add new parallel work in `cmd/scenarios/runner.go`, keep the cap at 4 — VM rate limiting was the reason.
 
+## Multi-env config (v0.2.x+)
+
+A single `~/.config/hbase-metrics-cli/config.yaml` can hold multiple named environment profiles in an `envs:` map, with `active_env:` picking the default. This lets one binary point at NG / ID / staging without re-editing the file.
+
+Schema:
+
+```yaml
+active_env: nigeria              # default profile; can be overridden at runtime
+envs:
+  nigeria:
+    vm_url: http://ng.example.com/
+    default_cluster: mrs-hbase-oline-ng
+  indonesia:
+    vm_url: https://id.example.com/
+    default_cluster: mrs-hbase-oline
+# Flat top-level fields remain valid; they act as fallback when no profile
+# applies or when the chosen profile leaves a field empty.
+vm_url: http://ng.example.com/
+default_cluster: mrs-hbase-oline-ng
+timeout: 10s
+```
+
+Profile-name precedence (low → high):
+
+1. `cfg.ActiveEnv` (from YAML)
+2. `HBASE_ENV` env var
+3. `--env <name>` flag
+
+Field-value precedence (low → high) inside `LoadEffectiveConfig` (`cmd/root.go`):
+
+```
+default → file flat → env profile overlay → HBASE_* env vars → --vm-url etc. flags
+```
+
+The overlay only touches non-empty profile fields; everything else falls through to the flat top-level. Unknown env names hard-error with `CONFIG_INVALID` and a hint listing known names.
+
+`config show` always reflects the **resolved** profile via `selected_env` (vs. `active_env` which is the YAML default) and tags `vm_url` / `default_cluster` sources as `env_profile` when they came from the overlay.
+
+**Don't reuse `--cluster` for profile selection** — it already means the PromQL `{cluster="..."}` label value (a metric dimension, not a config profile). The flag is `--env`; the YAML field is `active_env`; the env var is `HBASE_ENV`.
+
 ## Schema-discovery subcommands (v0.2.x)
 
 When writing PromQL or debugging "filter returns nothing", reach for these
@@ -195,6 +236,9 @@ before guessing — broken label filters are silently empty in PromQL and
 look identical to "no data".
 
 ```bash
+# Which HBase clusters does this VM endpoint serve? (cluster= label values)
+hbase-metrics-cli clusters
+
 # What labels does this metric carry, and how many distinct values each?
 hbase-metrics-cli labels hadoop_hbase_clusterrequests
 
@@ -202,8 +246,15 @@ hbase-metrics-cli labels hadoop_hbase_clusterrequests
 hbase-metrics-cli label-check hadoop_hbase_clusterrequests master
 ```
 
-Both hit `/api/v1/series` (via `vmclient.Series`), auto-scope to
-`--cluster` if set, and emit the standard envelope. `label-check` returns
+`clusters` lists the distinct `cluster=` label values across `hadoop_hbase_*`
+series via `/api/v1/label/cluster/values` (`vmclient.LabelValues`); the row
+matching `default_cluster` is flagged `default: true`. There is intentionally
+no `list-clusters`-style config command — a cluster is a PromQL label value,
+not a config entity. Feed the names to `--cluster`, or wire them into `envs:`
+profiles for `--env` switching.
+
+`labels` / `label-check` hit `/api/v1/series` (via `vmclient.Series`), auto-scope
+to `--cluster` if set, and emit the standard envelope. `label-check` returns
 `status: present|missing` with a hint pointing at alternatives when
 missing — useful since PromQL won't error out on absent labels, it just
 silently no-ops the filter.

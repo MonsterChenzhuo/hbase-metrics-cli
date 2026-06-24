@@ -146,6 +146,32 @@ func (c *Client) MetricNames(ctx context.Context, matchExpr string) ([]string, e
 	return out, nil
 }
 
+// LabelValues lists the distinct values a given label takes across the series
+// matched by matchExpr (empty matchExpr → all series). It hits
+// /api/v1/label/<label>/values and reuses the same retry path as MetricNames.
+func (c *Client) LabelValues(ctx context.Context, label, matchExpr string) ([]string, error) {
+	q := url.Values{}
+	if matchExpr != "" {
+		q.Set("match[]", matchExpr)
+	}
+	body, err := c.doRaw(ctx, "/api/v1/label/"+url.PathEscape(label)+"/values", q)
+	if err != nil {
+		return nil, err
+	}
+	var ar apiResponse
+	if err := json.Unmarshal(body, &ar); err != nil {
+		return nil, cerrors.Errorf(cerrors.CodeVMHTTP5XX, "decode label values response: %v", err)
+	}
+	if ar.Status != "success" {
+		return nil, cerrors.Errorf(cerrors.CodeVMHTTP4XX, "%s: %s", ar.ErrorType, ar.Error)
+	}
+	var out []string
+	if err := json.Unmarshal(ar.Data, &out); err != nil {
+		return nil, cerrors.Errorf(cerrors.CodeVMHTTP5XX, "decode label values data: %v", err)
+	}
+	return out, nil
+}
+
 func (c *Client) do(ctx context.Context, path string, q url.Values) (*Result, error) {
 	body, err := c.doRaw(ctx, path, q)
 	if err != nil {

@@ -179,5 +179,19 @@ func TestMetricNames_BuildsLabelValuesURLAndParsesNames(t *testing.T) {
 	require.Equal(t, []string{"hadoop_hbase_storefilesize", "hadoop_hbase_memstoresize"}, out)
 }
 
+func TestLabelValues_BuildsURLAndParsesValues(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/api/v1/label/cluster/values", r.URL.Path)
+		require.Equal(t, `{__name__=~"hadoop_hbase_.*"}`, r.URL.Query().Get("match[]"))
+		_, _ = w.Write([]byte(`{"status":"success","data":["mrs-hbase-oline-ng","mrs-hbase-offline-tag-ng"]}`))
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL, Timeout: 2 * time.Second})
+	out, err := c.LabelValues(context.Background(), "cluster", `{__name__=~"hadoop_hbase_.*"}`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"mrs-hbase-oline-ng", "mrs-hbase-offline-tag-ng"}, out)
+}
+
 // guard for unused import on Go versions
 var _ = json.RawMessage{}
