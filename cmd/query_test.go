@@ -3,6 +3,7 @@ package cmd
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/vmclient"
 )
@@ -116,7 +117,7 @@ func TestQueryRawRows(t *testing.T) {
 			},
 		},
 	}
-	rows := queryRawRows(res)
+	rows := queryRawRows(res, time.UTC)
 	if len(rows) != 3 {
 		t.Fatalf("got %d rows, want 3", len(rows))
 	}

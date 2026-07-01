@@ -66,7 +66,13 @@ func queryInstantRows(res *vmclient.Result) ([]output.Row, map[string]struct{}) 
 // mirroring the raw shape scenarios emit: columns [instance, timestamp, time,
 // value]. This is what makes the escape hatch usable for finding the exact
 // minute of a peak — the reason instant-only query was AI-hostile.
-func queryRawRows(res *vmclient.Result) []output.Row {
+//
+// When loc is non-UTC an extra "time_local" column is emitted alongside the
+// UTC "time". The UTC contract is never broken (agents can still parse "time"),
+// but the operator gets the wall-clock reading in the timezone their alarm
+// fired in, so no manual +08:00 arithmetic is needed to line rows up.
+func queryRawRows(res *vmclient.Result, loc *time.Location) []output.Row {
+	localZone := loc != nil && loc != time.UTC
 	rows := []output.Row{}
 	for _, s := range res.Result {
 		instance := s.Metric["instance"]
@@ -75,12 +81,16 @@ func queryRawRows(res *vmclient.Result) []output.Row {
 			if !ok {
 				continue
 			}
-			rows = append(rows, output.Row{
+			row := output.Row{
 				"instance":  instance,
 				"timestamp": ts,
 				"time":      time.Unix(ts, 0).UTC().Format(time.RFC3339),
 				"value":     querySampleValue(v),
-			})
+			}
+			if localZone {
+				row["time_local"] = time.Unix(ts, 0).In(loc).Format(time.RFC3339)
+			}
+			rows = append(rows, row)
 		}
 	}
 	sort.Slice(rows, func(i, j int) bool {
@@ -133,6 +143,8 @@ func querySampleValue(v []any) any {
 func newQueryCmd() *cobra.Command {
 	var since string
 	var step string
+	var end string
+	var tz string
 	cmd := &cobra.Command{
 		Use:   "query <promql>",
 		Short: "Run a raw PromQL query (escape hatch). Instant by default; --since makes it a range query.",
@@ -148,10 +160,24 @@ func newQueryCmd() *cobra.Command {
 					cfg.DefaultCluster)
 			}
 
-			// A range query is requested when --since is set, or when the
-			// global --raw flag is set (raw only has meaning over a window).
+			// Resolve the display/parse timezone once. Empty --tz falls back
+			// to UTC, so the historical behaviour is unchanged unless the
+			// operator opts in.
+			loc, err := parseLocation(tz)
+			if err != nil {
+				return cerrors.WithHint(
+					cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --tz: %v", err),
+					"use an IANA name like Asia/Shanghai or an offset like +08:00",
+				)
+			}
+
+			hasEnd := cmd.Flags().Changed("end")
+
+			// A range query is requested when --since is set, when --end is
+			// set (pinning an absolute window), or when the global --raw flag
+			// is set (raw only has meaning over a window).
 			hasSince := cmd.Flags().Changed("since")
-			isRange := hasSince || globals.Raw
+			isRange := hasSince || hasEnd || globals.Raw
 
 			var sinceDur time.Duration
 			if isRange {
@@ -200,20 +226,32 @@ func newQueryCmd() *cobra.Command {
 			}
 
 			if isRange {
-				end := time.Now()
-				start := end.Add(-sinceDur)
-				res, err := client.QueryRange(ctx, args[0], start, end, stepDur)
+				endTime := time.Now()
+				if hasEnd {
+					endTime, err = parseEndTime(end, loc)
+					if err != nil {
+						return cerrors.WithHint(
+							cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --end: %v", err),
+							"use unix seconds, RFC3339, or \"2006-01-02 15:04:05\" (interpreted in --tz)",
+						)
+					}
+				}
+				start := endTime.Add(-sinceDur)
+				res, err := client.QueryRange(ctx, args[0], start, endTime, stepDur)
 				if err != nil {
 					return err
 				}
 				env.Mode = "raw"
 				env.Range = &output.Range{
 					Start: start.UTC().Format(time.RFC3339),
-					End:   end.UTC().Format(time.RFC3339),
+					End:   endTime.UTC().Format(time.RFC3339),
 					Step:  stepDur.String(),
 				}
 				env.Columns = []string{"instance", "timestamp", "time", "value"}
-				env.Data = queryRawRows(res)
+				if loc != time.UTC {
+					env.Columns = append(env.Columns, "time_local")
+				}
+				env.Data = queryRawRows(res, loc)
 			} else {
 				res, err := client.Query(ctx, args[0], time.Now())
 				if err != nil {
@@ -244,5 +282,7 @@ func newQueryCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&since, "since", "", "Range window (e.g. 30m, 24h) — turns the instant query into a range query")
 	cmd.Flags().StringVar(&step, "step", "auto", "Range step (auto | duration like 30s, 5m); only used with --since/--raw")
+	cmd.Flags().StringVar(&end, "end", "", "Window end time (unix secs, RFC3339, or \"2006-01-02 15:04:05\"); pins an absolute past window ending here. Defaults to now.")
+	cmd.Flags().StringVar(&tz, "tz", "", "Timezone for --end parsing and a time_local output column (IANA name like Asia/Shanghai, or offset like +08:00). Defaults to UTC.")
 	return cmd
 }

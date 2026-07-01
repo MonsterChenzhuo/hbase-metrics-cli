@@ -41,6 +41,8 @@ All 13 embedded scenarios are `range` or `hybrid` — every one accepts `--since
 ## Common flags
 `--cluster X` `--since 5m|1h|24h` (range / hybrid only) `--step auto|30s|...` `--raw` `--top N` `--format json|table|markdown` (default `json`) `--dry-run`
 
+`query` only: `--end <unix|RFC3339|"2006-01-02 15:04:05">` pins an absolute past window end (default now); `--tz <IANA|+08:00>` sets the timezone `--end` is read in and adds a `time_local` column. **Alarms in this fleet are Beijing time (UTC+8); VM stores UTC** — pass `--tz Asia/Shanghai` so you stop hand-converting.
+
 ## Reading summary mode
 
 When `--since` is set, range and hybrid scenarios return `mode: "summary"`. Each row aggregates one instance (or one label value) over the window with `max`, `avg`, `p99`, `last`. Prefer `max` for hotspot detection, `p99` for tail-latency trends, `avg` for sustained load, `last` for the freshest value.
@@ -88,8 +90,30 @@ For any case the 13 scenarios don't cover, first discover metric names with `met
 
 ```bash
 hbase-metrics-cli metrics request --format table
+
+# Instant (mode: instant) — one row per series, current value:
 hbase-metrics-cli query 'sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline"}[5m]))'
+
+# Range (mode: raw) — add --since (and optional --step) to get a time series
+# you can scan for a peak/alarm minute. Emits columns [instance, timestamp, time, value]:
+hbase-metrics-cli query 'hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="regionserver"}' --since 24h --step 15m
+
+# Absolute past window in local time — for an alarm that already fired.
+# --end pins the window end; --tz reads --end in that zone AND adds a time_local column.
+# Alarm fired Beijing 11:57 → inspect that exact 6-minute window, rows tagged in Beijing time:
+hbase-metrics-cli query 'hadoop_hbase_processcalltime_99_9th_percentile{cluster="mrs-hbase-oline-ng", instance="10.57.0.173:19110", sub="IPC"}' \
+  --tz Asia/Shanghai --end "2026-07-01 12:00:00" --since 6m --step 30s --format table
 ```
+
+`query` is **instant by default**; `--since` (or `--raw`, or `--end`) turns it into a range
+query over `/api/v1/query_range`. Use the range form whenever you need to locate
+*when* something peaked — the summary scenarios only give max/avg/p99/last, not
+the timestamp. `--step` defaults to `auto`; `--raw` without `--since` uses a 5m
+window. **`--end` + `--tz` remove the manual timezone math** this fleet's Beijing-time
+alarms otherwise force: `--end` accepts unix seconds, RFC3339, or a zone-less
+`"2006-01-02 15:04:05"` (read in `--tz`), and non-UTC `--tz` adds a `time_local`
+column alongside the UTC `time`. Bad `--since`/`--step`/`--end`/`--tz` return
+`FLAG_INVALID` (exit 2).
 
 ## Common errors
 | Code | Action |

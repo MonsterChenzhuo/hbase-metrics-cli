@@ -17,7 +17,8 @@ Project-specific instructions for Claude Code (and other AI agents) working in t
 main.go
   └─ cmd/root.go                 cobra root, global flags, LoadEffectiveConfig()
        ├─ cmd/version.go         version subcommand + root --version flag (shared versionString())
-       ├─ cmd/query.go           raw PromQL escape hatch: instant by default; --since/--raw switch to a range query emitting flattened raw datapoints (warns when no cluster filter; columns derived from result labels)
+       ├─ cmd/query.go           raw PromQL escape hatch: instant by default; --since/--raw/--end switch to a range query emitting flattened raw datapoints (warns when no cluster filter; columns derived from result labels). --end + --tz pin an absolute past window in a local timezone
+       ├─ cmd/timewindow.go      --end / --tz parsing helpers (parseLocation, parseEndTime) shared by query
        ├─ cmd/clusters.go        list cluster= label values served by the VM endpoint
        ├─ cmd/labels.go          label-key discovery for a metric
        ├─ cmd/labelcheck.go      verify a label is actually emitted on a metric
@@ -275,6 +276,27 @@ to a 5m window. This closes an AI footgun: previously `query --since` hard-error
 `mode`, so the escape hatch couldn't fetch the time series needed to locate a
 peak minute. Bad `--since`/`--step` now return `FLAG_INVALID` (exit 2), not
 `INTERNAL`.
+
+**`query --end` / `--tz` (absolute past window in a local timezone).** `--since`
+only ever looks back from *now*, so investigating an alarm that fired hours ago
+meant hand-computing Unix timestamps and dropping to raw `curl /api/v1/query_range`.
+`--end` pins the window's end at an absolute instant; combined with `--since` it
+selects exactly `[end-since, end]`. `--end` accepts **unix seconds**, **RFC3339**
+(with its own zone), or a **zone-less wall-clock** `"2006-01-02 15:04:05"` /
+`"...T..."` / minute-precision form. `--tz` sets the timezone that zone-less
+`--end` values are interpreted in, and adds a `time_local` column to the raw
+output so rows line up with the alarm's local clock without manual `+08:00`
+arithmetic. `--tz` takes an IANA name (`Asia/Shanghai`) or a fixed offset
+(`+08:00`, `+0800`, `+8`, `-05:00`); default is UTC and the `time_local` column
+is omitted (unchanged contract). Bad `--tz`/`--end` return `FLAG_INVALID`
+(exit 2). Alarms in this fleet report **Beijing time (UTC+8)** while VM stores
+UTC — the canonical drill-in is:
+
+```bash
+# Alarm fired Beijing 11:57 → look at that 6-minute window, rows tagged in Beijing time
+hbase-metrics-cli query 'hadoop_hbase_processcalltime_99_9th_percentile{cluster="mrs-hbase-oline-ng", instance="10.57.0.173:19110", sub="IPC"}' \
+  --tz Asia/Shanghai --end "2026-07-01 12:00:00" --since 6m --step 30s --format table
+```
 
 ## Things NOT to do
 
