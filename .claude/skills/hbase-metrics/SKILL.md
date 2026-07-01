@@ -88,8 +88,20 @@ For any case the 13 scenarios don't cover, first discover metric names with `met
 
 ```bash
 hbase-metrics-cli metrics request --format table
+
+# Instant (mode: instant) — one row per series, current value:
 hbase-metrics-cli query 'sum by (instance) (rate(hadoop_hbase_totalrequestcount{cluster="mrs-hbase-oline"}[5m]))'
+
+# Range (mode: raw) — add --since (and optional --step) to get a time series
+# you can scan for a peak/alarm minute. Emits columns [instance, timestamp, time, value]:
+hbase-metrics-cli query 'hadoop_hbase_memheapusedm{cluster="mrs-hbase-oline", role="regionserver"}' --since 24h --step 15m
 ```
+
+`query` is **instant by default**; `--since` (or `--raw`) turns it into a range
+query over `/api/v1/query_range`. Use the range form whenever you need to locate
+*when* something peaked — the summary scenarios only give max/avg/p99/last, not
+the timestamp. `--step` defaults to `auto`; `--raw` without `--since` uses a 5m
+window. Bad `--since`/`--step` return `FLAG_INVALID` (exit 2).
 
 ## Common errors
 | Code | Action |

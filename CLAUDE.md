@@ -17,7 +17,7 @@ Project-specific instructions for Claude Code (and other AI agents) working in t
 main.go
   └─ cmd/root.go                 cobra root, global flags, LoadEffectiveConfig()
        ├─ cmd/version.go         version subcommand + root --version flag (shared versionString())
-       ├─ cmd/query.go           raw PromQL escape hatch (warns when no cluster filter; columns derived from result labels)
+       ├─ cmd/query.go           raw PromQL escape hatch: instant by default; --since/--raw switch to a range query emitting flattened raw datapoints (warns when no cluster filter; columns derived from result labels)
        ├─ cmd/clusters.go        list cluster= label values served by the VM endpoint
        ├─ cmd/labels.go          label-key discovery for a metric
        ├─ cmd/labelcheck.go      verify a label is actually emitted on a metric
@@ -262,6 +262,19 @@ silently no-ops the filter.
 The `query` subcommand emits a stderr warning when the raw PromQL has no
 `cluster=` selector. Non-blocking — pipe through `2>/dev/null` if you
 intentionally want a multi-cluster view.
+
+**`query` instant vs range (v0.2.x).** `query` is instant by default
+(`mode: "instant"`, one row per series). It becomes a **range** query when you
+pass `--since` (Go duration like `30m`, `24h`) or the global `--raw` flag —
+then it hits `/api/v1/query_range` and emits the same flattened raw shape as
+scenarios: `mode: "raw"`, `columns: [instance, timestamp, time, value]`, one
+row per (instance, timestamp), plus a `range` block. `--step` defaults to
+`auto` (resolved via `internal/stepauto`); `--raw` without `--since` defaults
+to a 5m window. This closes an AI footgun: previously `query --since` hard-errored
+`unknown flag` and `query --raw` silently no-op'd back to instant with an empty
+`mode`, so the escape hatch couldn't fetch the time series needed to locate a
+peak minute. Bad `--since`/`--step` now return `FLAG_INVALID` (exit 2), not
+`INTERNAL`.
 
 ## Things NOT to do
 
