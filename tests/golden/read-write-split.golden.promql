@@ -1,0 +1,12 @@
+# read_qps
+hadoop_hbase_readrequestratepersecond{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}
+
+# write_qps
+hadoop_hbase_writerequestratepersecond{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}
+
+# write_read_ratio
+hadoop_hbase_writerequestratepersecond{cluster="mrs-hbase-oline", role="regionserver", sub="Server"} / clamp_min(hadoop_hbase_readrequestratepersecond{cluster="mrs-hbase-oline", role="regionserver", sub="Server"}, 1)
+
+# wal_sync_p99_ms
+hadoop_hbase_synctime_99th_percentile{cluster="mrs-hbase-oline", role="regionserver", sub="WAL"}
+

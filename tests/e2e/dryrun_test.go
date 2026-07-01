@@ -26,7 +26,7 @@ var allScenarios = []string{
 	"rpc-latency", "handler-queue", "hotspot-detect",
 	"gc-pressure", "jvm-memory",
 	"compaction-status", "blockcache-hitrate", "wal-stats",
-	"master-status", "storage-usage",
+	"master-status", "storage-usage", "read-write-split",
 }
 
 func TestDryRun_AllScenariosEmitJSONWithRenderedExpr(t *testing.T) {

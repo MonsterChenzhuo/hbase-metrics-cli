@@ -1,0 +1,34 @@
+name: read-write-split
+description: Per-RegionServer read vs write request rate, their ratio, and WAL sync P99 — to answer "is this latency read-driven or write-driven?".
+range: false
+instant_summary: true
+columns: [instance, read_qps, write_qps, write_read_ratio, wal_sync_p99_ms]
+summary:
+  read_qps:
+    aggs: [max, avg, p99, last]
+  write_qps:
+    aggs: [max, avg, p99, last]
+  write_read_ratio:
+    aggs: [max, avg, last]
+  wal_sync_p99_ms:
+    aggs: [max, avg, p99, last]
+queries:
+  - label: read_qps
+    expr: |
+      hadoop_hbase_readrequestratepersecond{cluster="{{.cluster}}", role="regionserver", sub="Server"}
+  - label: write_qps
+    expr: |
+      hadoop_hbase_writerequestratepersecond{cluster="{{.cluster}}", role="regionserver", sub="Server"}
+  # write:read ratio — >>1 means write-dominated (pair a p999 spike with a WAL
+  # sync spike below to confirm write path); <1 means read-dominated (look at
+  # blockcache-hitrate / compaction-status instead). clamp_min avoids div-by-0
+  # on read-idle RegionServers.
+  - label: write_read_ratio
+    expr: |
+      hadoop_hbase_writerequestratepersecond{cluster="{{.cluster}}", role="regionserver", sub="Server"} / clamp_min(hadoop_hbase_readrequestratepersecond{cluster="{{.cluster}}", role="regionserver", sub="Server"}, 1)
+  # WAL sync lives under sub="WAL" (NOT sub="IPC" — that is the RPC-layer
+  # processCallTime). A p999 alarm that lines up with a wal_sync_p99_ms spike is
+  # write-path / HDFS-flush latency, not a slow read.
+  - label: wal_sync_p99_ms
+    expr: |
+      hadoop_hbase_synctime_99th_percentile{cluster="{{.cluster}}", role="regionserver", sub="WAL"}

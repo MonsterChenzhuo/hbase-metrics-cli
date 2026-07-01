@@ -9,7 +9,7 @@ Project-specific instructions for Claude Code (and other AI agents) working in t
 - **Module:** `github.com/opay-bigdata/hbase-metrics-cli`
 - **Go:** 1.23+ (developed against go1.26.2)
 - **Entry point:** `main.go` → `cmd.Execute()`
-- **13 flat top-level scenario commands** are registered automatically by walking the embedded `scenarios/*.yaml`.
+- **14 flat top-level scenario commands** are registered automatically by walking the embedded `scenarios/*.yaml`.
 
 ## Architecture (1-minute tour)
 
@@ -38,7 +38,7 @@ internal/
   ├─ stepauto/  auto-step resolver: 30m→30s, 2h→1m, 12h→2m, 24h→5m, >24h→10m
   └─ vmclient/  VM /api/v1/query{,_range} client with HTTP→error mapping
 
-scenarios/        13 *.yaml + embed.go (//go:embed all:*.yaml)
+scenarios/        14 *.yaml + embed.go (//go:embed all:*.yaml)
 tests/golden/     PromQL goldens + envelope JSON goldens (summary/raw shape locks) + golden_test.go (-update)
 tests/e2e/        dryrun_test.go behind //go:build e2e (incl. hybrid cluster-overview check)
 ```
@@ -315,6 +315,12 @@ hbase-metrics-cli query 'hadoop_hbase_processcalltime_99_9th_percentile{cluster=
 - Cluster human name: `mrs印尼集群`
 - Label set on every series: `platform`, `cluster`, `cluster_name`, `service`, `role`, `instance`
 - Metric prefixes: `hadoop_hbase_*` (HBase JMX), `jvm_*` (JVM, GC, Threading, OS)
+
+### Metric gotchas that cause silent no-data (learned the hard way)
+
+- **`sub` label disambiguates same-named metrics — a wrong `sub` returns empty, not an error.** The classic trap when asking "read or write?": `hadoop_hbase_synctime_99th_percentile{sub="WAL"}` is WAL fsync latency (write path), while `hadoop_hbase_processcalltime_99_9th_percentile{sub="IPC"}` is RPC-layer call time. They are different beans; querying WAL sync under `sub="IPC"` (or vice versa) silently no-ops. When a filter returns nothing, `labels <metric>` first and check the `sub` value before assuming the metric is absent.
+- **Read/write request rate lives on gauges, not the `*requestcount` counters you'd guess.** For a per-RS read-vs-write picture use `hadoop_hbase_readrequestratepersecond` / `hadoop_hbase_writerequestratepersecond` (`sub="Server"`) — surfaced by the `read-write-split` scenario. `rpcmutaterequestcount` reads 0 on this fleet; prefer `writerequestratepersecond` for the write signal. `rpcgetrequestcount` / `rpcscanrequestcount` (`sub="Server"`) are the RPC-side read breakdown.
+- **Per-table × per-RS distribution is NOT available from VM.** The `hadoop_hbase_metatable_table_<t>_request_*` series only exist on the RegionServer hosting the `meta` region (so they read 0 / single-instance everywhere else), and per-table JMX beans are blacklisted upstream (see "Don't add per-region or per-table metrics"). To reason about a single table's balance across RegionServers, use the balancer cost functions instead (`hadoop_hbase_<table>_tableskewcostfunction`, `..._regioncountskewcostfunction`, `..._readrequestcostfunction`, `..._writerequestcostfunction`, `..._storefilecostfunction`) — `0` means balanced, non-zero means skew on that dimension.
 
 ## Spec & plan
 

@@ -13,14 +13,14 @@ description: Use when diagnosing HBase cluster health/performance — RPC latenc
 1. `hbase-metrics-cli config show` — confirm VM URL and default cluster.
 2. If `vm_url` source is `default`, prompt the user to run `hbase-metrics-cli config init` (or set `HBASE_VM_URL`).
 
-## Thirteen scenarios
+## Fourteen scenarios
 
 The **Mode** column tells you whether `--since` is accepted:
 
 - `range` — must use `--since` (defaults if omitted). Returns `mode: summary` or `raw`.
 - `hybrid` — instant by default; pass `--since` to get a windowed `summary` over that period.
 
-All 13 embedded scenarios are `range` or `hybrid` — every one accepts `--since`. (A purely-instant scenario, where `--since` is rejected with `FLAG_INVALID`, is still possible in the schema but no longer present in the bundled set.)
+All 14 embedded scenarios are `range` or `hybrid` — every one accepts `--since`. (A purely-instant scenario, where `--since` is rejected with `FLAG_INVALID`, is still possible in the schema but no longer present in the bundled set.)
 
 | Scenario | Mode | When to use | Example |
 |---|---|---|---|
@@ -37,6 +37,7 @@ All 13 embedded scenarios are `range` or `hybrid` — every one accepts `--since
 | `wal-stats` | range | Writes slow | `hbase-metrics-cli wal-stats --since 30m` |
 | `master-status` | hybrid | Master / RIT issues | `hbase-metrics-cli master-status` |
 | `storage-usage` | hybrid | StoreFile / MemStore bytes per RS | `hbase-metrics-cli storage-usage --format table` |
+| `read-write-split` | hybrid | "Read-driven or write-driven?" | `hbase-metrics-cli read-write-split --since 10m --format table` |
 
 ## Common flags
 `--cluster X` `--since 5m|1h|24h` (range / hybrid only) `--step auto|30s|...` `--raw` `--top N` `--format json|table|markdown` (default `json`) `--dry-run`
@@ -78,10 +79,11 @@ Run in this order rather than going straight to one metric; later steps interpre
 
 1. `cluster-overview --since 24h` — overall severity & whether multiple RS are unhealthy
 2. `rpc-latency --since 24h` + `handler-queue --since 1h` — service-side bottlenecks
-3. `hotspot-detect --since 1h` — single-RS hot spot driving the symptom
-4. `gc-pressure --since 24h` + `jvm-memory --since 24h` — JVM dragging the RS
-5. `compaction-status --since 24h` + `blockcache-hitrate --since 24h` + `storage-usage --since 24h` — storage layer pressure
-6. Drill in via `queries[].expr` (rerun with adjusted PromQL through `hbase-metrics-cli query '...'`)
+3. `read-write-split --since 1h` — is the load/latency read-driven or write-driven? (`write_read_ratio` >>1 + a `wal_sync_p99_ms` spike ⇒ write path; ratio <1 ⇒ go to blockcache/compaction below)
+4. `hotspot-detect --since 1h` — single-RS hot spot driving the symptom
+5. `gc-pressure --since 24h` + `jvm-memory --since 24h` — JVM dragging the RS
+6. `compaction-status --since 24h` + `blockcache-hitrate --since 24h` + `storage-usage --since 24h` — storage layer pressure
+7. Drill in via `queries[].expr` (rerun with adjusted PromQL through `hbase-metrics-cli query '...'`)
 
 For a 24h health check, batch all of the above with `--since 24h`; all bundled scenarios currently accept `--since`.
 
@@ -114,6 +116,14 @@ alarms otherwise force: `--end` accepts unix seconds, RFC3339, or a zone-less
 `"2006-01-02 15:04:05"` (read in `--tz`), and non-UTC `--tz` adds a `time_local`
 column alongside the UTC `time`. Bad `--since`/`--step`/`--end`/`--tz` return
 `FLAG_INVALID` (exit 2).
+
+## Metric gotchas (silent no-data traps)
+
+A wrong label filter returns **empty**, not an error — identical to "metric absent". When a `query` comes back empty, run `labels <metric>` before assuming the bean is missing.
+
+- **`sub` disambiguates same-named metrics.** WAL fsync latency is `hadoop_hbase_synctime_99th_percentile{sub="WAL"}` (write path); RPC call time is `hadoop_hbase_processcalltime_99_9th_percentile{sub="IPC"}`. Mixing up the `sub` silently no-ops. This is the trap when confirming "write-driven".
+- **Read/write rate is on gauges, not the counters you'd guess.** Use `read-write-split` (or `hadoop_hbase_readrequestratepersecond` / `writerequestratepersecond`, `sub="Server"`). `rpcmutaterequestcount` reads 0 on this fleet — trust `writerequestratepersecond` for writes.
+- **Per-table × per-RS is NOT queryable from VM.** `metatable_table_<t>_request_*` only exists on the RS holding the `meta` region (0 / single-instance elsewhere), and per-table beans are blacklisted upstream. To judge one table's balance across RS, use balancer cost functions: `hadoop_hbase_<table>_tableskewcostfunction` / `_regioncountskewcostfunction` / `_readrequestcostfunction` / `_writerequestcostfunction` / `_storefilecostfunction` (`0` = balanced, non-zero = skew on that dimension).
 
 ## Common errors
 | Code | Action |
