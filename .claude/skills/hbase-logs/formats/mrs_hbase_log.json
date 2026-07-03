@@ -1,0 +1,22 @@
+{
+  "mrs_hbase_log": {
+    "title": "Huawei MRS HBase RegionServer/Master log",
+    "description": "Pipe-delimited: ts | LEVEL | thread | message | class",
+    "url": "https://docs.lnav.org",
+    "regex": {
+      "std": {
+        "pattern": "^(?<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) \\| (?<level>\\w+)\\s* \\| (?<thread>[^|]*?) \\| (?<body>.*?) \\| (?<class>[^|]*)$"
+      }
+    },
+    "level-field": "level",
+    "level": { "error": "ERROR", "warning": "WARN", "info": "INFO", "debug": "DEBUG" },
+    "value": {
+      "thread": { "kind": "string", "identifier": true },
+      "class": { "kind": "string", "identifier": true },
+      "body": { "kind": "string" }
+    },
+    "sample": [
+      { "line": "2026-07-01 03:55:04,634 | INFO  | regionserver/host:16020.Chore.1 | MemstoreFlusherChore requesting flush of wallet_user_tag | org.apache.hadoop.hbase.regionserver.HRegionServer$PeriodicMemStoreFlusher.chore(HRegionServer.java:2337)" }
+    ]
+  }
+}
