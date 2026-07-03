@@ -1,4 +1,5 @@
 {
+  "$schema": "https://lnav.org/schemas/format-v1.schema.json",
   "mrs_hbase_log": {
     "title": "Huawei MRS HBase RegionServer/Master log",
     "description": "Pipe-delimited: ts | LEVEL | thread | message | class",
