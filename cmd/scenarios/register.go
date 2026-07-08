@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/config"
+	"github.com/opay-bigdata/hbase-metrics-cli/internal/durutil"
 	cerrors "github.com/opay-bigdata/hbase-metrics-cli/internal/errors"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/output"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/promql"
@@ -82,9 +83,12 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 			}
 			var sinceDur time.Duration
 			if effectiveSince != "" {
-				sinceDur, err = time.ParseDuration(effectiveSince)
+				sinceDur, err = durutil.Parse(effectiveSince)
 				if err != nil {
-					return cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --since %q: %v", effectiveSince, err)
+					return cerrors.WithHint(
+						cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --since %q: %v", effectiveSince, err),
+						"use a duration like 30m, 6h, 24h, 7d, 2w",
+					)
 				}
 			}
 
@@ -92,9 +96,12 @@ func buildCmd(s promql.Scenario, loadCfg LoadConfigFn, format FormatFn, dryRun D
 			if step == "" || step == "auto" {
 				stepDur = stepauto.Resolve(sinceDur)
 			} else {
-				stepDur, err = time.ParseDuration(step)
+				stepDur, err = durutil.Parse(step)
 				if err != nil {
-					return cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --step %q: %v", step, err)
+					return cerrors.WithHint(
+						cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --step %q: %v", step, err),
+						"use auto or a duration like 30s, 5m, 1h",
+					)
 				}
 			}
 

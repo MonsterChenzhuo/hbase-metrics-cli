@@ -22,7 +22,7 @@ main.go
        ├─ cmd/clusters.go        list cluster= label values served by the VM endpoint
        ├─ cmd/labels.go          label-key discovery for a metric
        ├─ cmd/labelcheck.go      verify a label is actually emitted on a metric
-       ├─ cmd/configcmd/         config init / config show (show goes through LoadEffectiveConfig so --env / HBASE_ENV / --vm-url are honored)
+       ├─ cmd/configcmd/         config init / config show / config use (use persists active_env to disk; show goes through LoadEffectiveConfig so --env / HBASE_ENV / --vm-url are honored)
        └─ cmd/scenarios/         auto-registers one cobra cmd per YAML
             ├─ register.go       walks promql.LoadEmbedded(), wires flags (incl. --since/--step/--raw)
             ├─ runner.go         pickMode → render → errgroup parallel queries (limit 4) → merge/summarize → output
@@ -31,6 +31,7 @@ main.go
 
 internal/
   ├─ aggregate/ pure summary math (max/avg/p99/last, NaN/Inf exclusion, NaNRatio)
+  ├─ durutil/   duration parser extending time.ParseDuration with d (days) / w (weeks); used by --since/--step in query.go + scenarios/register.go
   ├─ config/    layered config (flag > env > file > default), Source tracking
   ├─ errors/    CodedError {Code, Message, Hint}, exit codes 0/1/2/3
   ├─ output/    Envelope rendering: json | table | markdown (mode ∈ instant|summary|raw)
@@ -218,6 +219,8 @@ Profile-name precedence (low → high):
 2. `HBASE_ENV` env var
 3. `--env <name>` flag
 
+To change the **persistent** default (level 1) without hand-editing YAML, run `config use <env>` — it validates the name against the `envs:` map, sets `active_env`, and writes the file back through `config.Save` (preserving `envs` + flat fields). Unknown names hard-error `CONFIG_INVALID` with a hint listing known profiles. For a one-off switch, prefer `HBASE_ENV` / `--env` (they override `active_env` at runtime and don't touch disk).
+
 Field-value precedence (low → high) inside `LoadEffectiveConfig` (`cmd/root.go`):
 
 ```
@@ -266,7 +269,7 @@ intentionally want a multi-cluster view.
 
 **`query` instant vs range (v0.2.x).** `query` is instant by default
 (`mode: "instant"`, one row per series). It becomes a **range** query when you
-pass `--since` (Go duration like `30m`, `24h`) or the global `--raw` flag —
+pass `--since` (a duration like `30m`, `24h`, `7d`, `2w`) or the global `--raw` flag —
 then it hits `/api/v1/query_range` and emits the same flattened raw shape as
 scenarios: `mode: "raw"`, `columns: [instance, timestamp, time, value]`, one
 row per (instance, timestamp), plus a `range` block. `--step` defaults to
@@ -276,6 +279,14 @@ to a 5m window. This closes an AI footgun: previously `query --since` hard-error
 `mode`, so the escape hatch couldn't fetch the time series needed to locate a
 peak minute. Bad `--since`/`--step` now return `FLAG_INVALID` (exit 2), not
 `INTERNAL`.
+
+**Duration units (`--since` / `--step`).** Both are parsed by `internal/durutil.Parse`,
+which is a superset of `time.ParseDuration`: it adds `d` (days) and `w` (weeks) on
+top of `ns/us/ms/s/m/h`, and supports mixed forms (`1d12h`, `1w3d`) and a leading
+sign. So a 7-day window is `--since 7d`, not `168h`. This applies identically to
+**scenarios** (`cmd/scenarios/register.go`) and **query** (`cmd/query.go`); both call
+`durutil.Parse`, so keep using it (not `time.ParseDuration`) for any new window flag.
+Unknown units still return `FLAG_INVALID` (exit 2) with a hint listing valid units.
 
 **`query --end` / `--tz` (absolute past window in a local timezone).** `--since`
 only ever looks back from *now*, so investigating an alarm that fired hours ago

@@ -13,6 +13,14 @@ description: Use when diagnosing HBase cluster health/performance — RPC latenc
 1. `hbase-metrics-cli config show` — confirm VM URL and default cluster.
 2. If `vm_url` source is `default`, prompt the user to run `hbase-metrics-cli config init` (or set `HBASE_VM_URL`).
 
+## Switching environments
+Multiple named env profiles live in the config's `envs:` map. Three ways to pick one, low→high precedence:
+- `active_env` in the config file — set it **persistently** with `hbase-metrics-cli config use <env>` (no more repeating `--env` on every command).
+- `HBASE_ENV=<env>` environment variable (per-shell).
+- `--env <env>` flag (per-command; overrides the above).
+
+There is **no `config use` that takes effect only for one command** — `config use` writes `active_env` to disk. For a one-off, use `--env` or `HBASE_ENV`. List available profiles with `config show` (`envs` map).
+
 ## Fourteen scenarios
 
 The **Mode** column tells you whether `--since` is accepted:
@@ -40,9 +48,11 @@ All 14 embedded scenarios are `range` or `hybrid` — every one accepts `--since
 | `read-write-split` | hybrid | "Read-driven or write-driven?" | `hbase-metrics-cli read-write-split --since 10m --format table` |
 
 ## Common flags
-`--cluster X` `--since 5m|1h|24h` (range / hybrid only) `--step auto|30s|...` `--raw` `--top N` `--format json|table|markdown` (default `json`) `--dry-run`
+`--cluster X` `--since 5m|1h|24h|7d|2w` (range / hybrid only) `--step auto|30s|1h|1d|...` `--raw` `--top N` `--format json|table|markdown` (default `json`) `--dry-run` `--env <profile>`
 
-`query` only: `--end <unix|RFC3339|"2006-01-02 15:04:05">` pins an absolute past window end (default now); `--tz <IANA|+08:00>` sets the timezone `--end` is read in and adds a `time_local` column. **Alarms in this fleet are Beijing time (UTC+8); VM stores UTC** — pass `--tz Asia/Shanghai` so you stop hand-converting.
+`--since` / `--step` accept Go durations (`ns/us/ms/s/m/h`) **plus `d` (days) and `w` (weeks)**, including mixed forms like `1d12h` or `1w3d`. So a 7-day health check is `--since 7d` (not `168h`). Bad units return `FLAG_INVALID` (exit 2).
+
+`--tz` / `--end` are **`query`-only** (not accepted by the 14 scenario commands). `--end <unix|RFC3339|"2006-01-02 15:04:05">` pins an absolute past window end (default now); `--tz <IANA|+08:00>` sets the timezone `--end` is read in and adds a `time_local` column. **Alarms in this fleet are Beijing time (UTC+8); VM stores UTC** — pass `--tz Asia/Shanghai` so you stop hand-converting. For a scenario, there is no `--tz`; drop to `query` when you need local-time drill-in.
 
 ## Reading summary mode
 

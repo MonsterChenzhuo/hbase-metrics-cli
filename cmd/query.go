@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/opay-bigdata/hbase-metrics-cli/internal/durutil"
 	cerrors "github.com/opay-bigdata/hbase-metrics-cli/internal/errors"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/output"
 	"github.com/opay-bigdata/hbase-metrics-cli/internal/stepauto"
@@ -185,11 +186,11 @@ func newQueryCmd() *cobra.Command {
 				if effectiveSince == "" {
 					effectiveSince = "5m" // --raw without --since: default window
 				}
-				sinceDur, err = time.ParseDuration(effectiveSince)
+				sinceDur, err = durutil.Parse(effectiveSince)
 				if err != nil {
 					return cerrors.WithHint(
 						cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --since %q: %v", effectiveSince, err),
-						"use a Go duration like 30m, 6h, 24h",
+						"use a duration like 30m, 6h, 24h, 7d, 2w",
 					)
 				}
 			}
@@ -199,11 +200,11 @@ func newQueryCmd() *cobra.Command {
 				if step == "" || step == "auto" {
 					stepDur = stepauto.Resolve(sinceDur)
 				} else {
-					stepDur, err = time.ParseDuration(step)
+					stepDur, err = durutil.Parse(step)
 					if err != nil {
 						return cerrors.WithHint(
 							cerrors.Errorf(cerrors.CodeFlagInvalid, "invalid --step %q: %v", step, err),
-							"use auto or a Go duration like 30s, 5m",
+							"use auto or a duration like 30s, 5m, 1h",
 						)
 					}
 				}

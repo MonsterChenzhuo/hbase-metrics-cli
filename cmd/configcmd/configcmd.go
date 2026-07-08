@@ -20,5 +20,6 @@ func New(loadEffective LoadEffectiveFn) *cobra.Command {
 	}
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newShowCmd(loadEffective))
+	cmd.AddCommand(newUseCmd())
 	return cmd
 }
